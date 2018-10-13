@@ -13,7 +13,7 @@ This is an interdisciplinary project between statistics and nutrition undergrada
 <br> Participants in the NHS total approximately 20,000 whilst the NNPAS has 13,000 participants. Whilst both surveys had common questions including household information, demogrpahics, body mass, food consumption and other physical measures, the NNPAS had additional components regarding physical activity whilst NHS surveyed for medications, alcohol consumption, financial stressors etc. </br>
 <br> These participants were invited to volunteer for the NHMS, which consisted of taking blood tests (12yrs+), urine tests (5yrs+) and other chronic disease markers.</br>
 
-<br>Rmd:</br>
+<br>__Rmd:__</br>
 
 All functions for use are stored as \<function_name\>.R
 
@@ -21,7 +21,7 @@ In your R console please check that your Rmd files are in the `rmd` directory ot
 
 ```{r}
 getwd()
-```{r}
+```
 
 __Files:__
 <br>[GoogleDoc for Ideas and Workflow](https://docs.google.com/document/d/1tk3tf3uSRE0-vkbDt2_8xvHBUhI0JsLxa3ZaOfnr7lo/edit) </br>
