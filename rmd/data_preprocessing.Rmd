@@ -1,0 +1,289 @@
+---
+title: "data_preprocessing"
+author: "Jerry Xu"
+date: "11 October 2018"
+output:
+  # pdf_document: default
+  html_document: default
+---
+
+```{r, include=TRUE}
+
+# library(tidyverse)
+library(dplyr)
+library(ggplot2)
+source("./functions/cv_knn.R")
+source("./functions/cv_da.R")
+source("./functions/cv_rpart.R")
+```
+
+
+In the previous markdown file we explored the dataset, relabelling the variables as NA as appropriate according to the data dictionary. 
+
+Visualisations and other exploratory analysis was conducted mostly on a "cleaned" dataset with all missing variables dropped by row and column, which is not a reliable method of data preprocessing. 
+
+Hence, we want to preprocess the dataset properly by first assessing which variables are necessary and handling the missing data/outliers methodically.
+
+We utilise the AHS dataset that has the appropriate variable outcomes relabelled as NA with nothing dropped. 
+ 
+```{r}
+
+feature_variables = c("BMISC", "AGEC", "PHDKGWBC", "EXLWTBC", "SF2SA1QN", "INCDEC", "HSUGBC", "FATT1", "SUGART1", 
+                       "PREVAT1", "PROVAT1", "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", "SUGPER1", "SATPER1", "TRANPER1", 
+                       "MONOPER1", "POLYPER1", "ADTOTSE", "SEX", "SMKSTAT", "SYSTOL", "FASTSTAD", "HDLCHREB", "LDLNTR", "LDLRESB", "B3T1")
+
+# BMR, SLPTIME
+
+response_variables = c("CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST")
+
+all_variables = c(feature_variables, response_variables)
+
+nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
+nutm = nutm_orig[all_variables]
+```
+
+We'll need to reprocess some of the variables as factors. 
+
+```{r}
+categoricalList <- c()
+
+categoricalList[ 1 ] <- FALSE #  BMISC 
+categoricalList[ 2 ] <- FALSE #  AGEC 
+
+categoricalList[ 3 ] <- FALSE #  PHDKGWBC 
+
+categoricalList[ 4 ] <- FALSE #  EXLWTBC 
+
+categoricalList[ 5 ] <- TRUE #  SF2SA1QN 
+categoricalList[ 6 ] <- TRUE #  INCDEC 
+
+categoricalList[ 7 ] <- TRUE #  HSUGBC 
+
+categoricalList[ 8 ] <- FALSE #  FATT1 
+
+categoricalList[ 9 ] <- FALSE #  SUGART1 
+
+categoricalList[ 10 ] <- FALSE #  PREVAT1 
+categoricalList[ 11 ] <- FALSE #  PROVAT1 
+
+categoricalList[ 12 ] <- FALSE #  FATPER1 
+categoricalList[ 13 ] <- FALSE #  LAPER1 
+categoricalList[ 14 ] <- FALSE #  ALAPER1 
+categoricalList[ 15 ] <- FALSE #  CHOPER1 
+categoricalList[ 16 ] <- FALSE #  SUGPER1 
+
+categoricalList[ 17 ] <- FALSE #  SATPER1 
+categoricalList[ 18 ] <- FALSE #  TRANPER1 
+
+categoricalList[ 19 ] <- FALSE #  MONOPER1 
+categoricalList[ 20 ] <- FALSE #  POLYPER1 
+categoricalList[ 21 ] <- FALSE #  ADTOTSE 
+
+categoricalList[ 22 ] <- TRUE #  SEX 
+
+categoricalList[ 23 ] <- TRUE #  SMKSTAT 
+categoricalList[ 24 ] <- FALSE #  SYSTOL 
+
+categoricalList[ 25 ] <- TRUE #  FASTSTAD 
+
+categoricalList[ 26 ] <- TRUE #  HDLCHREB 
+categoricalList[ 27 ] <- TRUE #  LDLNTR 
+categoricalList[ 28 ] <- TRUE #  LDLRESB 
+
+categoricalList[ 29 ] <- TRUE #  B3T1
+
+categoricalList[ 30 ] <- TRUE #  CHOLNTR 
+categoricalList[ 31 ] <- TRUE #  HDLCHREB 
+categoricalList[ 32 ] <- TRUE #  DIABBC 
+categoricalList[ 33 ] <- TRUE #  HCHOLBC 
+categoricalList[ 34 ] <- TRUE #  HYPBC 
+categoricalList[ 35 ] <- TRUE #  CVDMEDST 
+
+# "CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST"
+
+for (i in 1:length(categoricalList)) {
+  if (categoricalList[ i ]) {
+      nutm[,i] <- as.factor(nutm[  ,i])
+  }
+}
+
+head(nutm)
+```
+
+## Missing Values
+
+First we check for missing values in this particular subset
+
+```{r}
+dim(nutm)
+idx_len = length(all_variables)
+
+percent_missing_values <- data.frame(matrix(ncol=idx_len, nrow=3))
+colnames(percent_missing_values) <- all_variables
+
+for (i in 1:length(nutm)){
+  
+  percent_missing_values[1, i] = sum(is.na(nutm[, i]))
+  percent_missing_values[2, i] = dim(nutm)[1] - sum(is.na(nutm[, i]))
+  percent_missing_values[3, i] = percent_missing_values[1, i]/dim(nutm)[1]
+}
+
+
+```
+
+```{r}
+
+round_2dp <- function(x){
+  round(x, 2)
+} 
+
+percent_missing_values <- data.frame(lapply(percent_missing_values, round_2dp))
+
+rownames(percent_missing_values) <- c("missing", "not_missing", "percent_missing")
+
+# percent_missing_values[3, ]
+column_idx <- c(1:idx_len)
+
+#plot(column_idx, percent_missing_values[3, ], type="h", 
+#     main="% missing values for each column", ylab="% missing values", xlab = "column_index")
+
+```
+
+```{r}
+
+pmv_transpose <- data.frame(t(percent_missing_values))
+pmv_transpose
+
+ggplot(pmv_transpose, aes(x=column_idx, y=(percent_missing*100), fill="purple")) + geom_bar(stat="identity") +
+  xlab("variables") + ylab("% missing") + ggtitle("% Values Missing in a Variable") +
+  guides(fill=FALSE) 
+
+```
+
+Looking at this, we may have to omit some variables depending on which response variables we are analying.
+
+
+## Predicting Diabetes Mellitus
+
+We use to model the "DIABBC" variable. It contains 3 outcomes:
+
+```{r}
+
+table(nutm["DIABBC"])
+
+```
+
+\begin{tabular}{|c|c|}
+\hline
+Outcome & Interpretation    \\
+\hline
+1       & Currently has DB  \\
+3       & Had DB previously \\
+5       & Does not have DB  \\
+\hline
+\end{tabular}
+
+Judging by the distribution of the different responses, we may have to drop 3 entirely as the definition of such an outcome is unclear. We do not know how long ago they stopped, although a retrospective study of their health improvements could be an interesting further piece of work.
+
+Given the disparity between the binary outcomes, a Poisson model here makes sense. 
+
+Now we need to select our feature variables. 
+
+```{r}
+diabetes_response = c("DIABBC")
+diabetes_variables = c("BMISC", "AGEC", "EXLWTBC", 
+                       # "SF2SA1QN", "INCDEC",
+                       # "HSUGBC", 
+                       "FATT1", "SUGART1", 
+                       "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       "ADTOTSE"
+                       # "SEX"
+                       # "SMKSTAT", "SYSTOL", "FASTSTAD", 
+                       # "HDLCHREB", "LDLNTR", "LDLRESB", 
+                       #"B3T1"
+                       )
+
+diabetes = nutm[c(diabetes_response, diabetes_variables)]
+diabetes = diabetes[diabetes$DIABBC != 3, ]
+
+table(diabetes$DIABBC)
+
+diabetes <- mutate(diabetes, DIABBC = ifelse(DIABBC == 5, "0", "1"))
+diabetes$DIABBC <- as.factor(diabetes$DIABBC)
+head(diabetes)
+```
+
+```{r}
+sum(is.na(nutm[diabetes_response]))
+
+diabetes_no_na <- diabetes[complete.cases(diabetes), ]
+
+dim(diabetes_no_na)
+table(diabetes_no_na$DIABBC)
+```
+
+It seems like dropping all rows with any NA values does not change the binary outcomes of the response by alot. This is good. 
+
+```{r}
+
+ggplot(diabetes_no_na, aes(x=BMISC)) + stat_density(aes(fill=DIABBC)) +
+  labs(title ="Diabetes", x = "BMI", y = "density") + 
+  scale_fill_discrete(labels=c("Neg", "Pos"))
+
+ggplot(diabetes_no_na, aes(x=SUGART1)) + stat_density(aes(fill=DIABBC)) +
+  labs(title ="Diabetes", x = "Sugar", y = "density") + 
+  scale_fill_discrete(labels=c("Neg", "Pos"))
+
+```
+
+
+Now we can try to fit a KNN to test the code. 
+
+```{r}
+neighbours=3
+V=10
+
+X = data.frame(scale(diabetes_no_na[, 2:15]))
+y = diabetes_no_na$DIABBC
+head(X)
+cv_knn(X, y, k=neighbours, V=10, seed=1)
+
+res.rpart <- rpart(m_y_nz ~ m_x_nz
+, data=df_cart_no_zeroes)
+rpart.plot(res.rpart,type=1,extra=1, main="CART for Diabetes, non_zeroes")
+```
+
+```{r}
+X <- as.matrix(diabetes_no_na[, 2:15])
+y <- diabetes_no_na$DIABBC
+
+diabetes_no_na_cart <- data.frame(y, X)
+
+res_rpart <- rpart(y ~ X, data=diabetes_no_na_cart)
+res_rpart
+rpart.plot(res_rpart,type=1,extra=1, main="CART for Diabetes")
+```
+
+```{r}
+
+X = data.frame(scale(diabetes_no_na[, 2:15]))
+y = diabetes_no_na$DIABBC
+
+cv_da(X = X, y = y, V = 10, method = "lda", seed = 1)
+cv_da(X = X, y = y, V = 10, method = "qda", seed = 1)
+
+```
+
+```{r}
+
+X = data.frame(scale(diabetes_no_na[, 2:15]))
+y = diabetes_no_na$DIABBC
+
+mutate(diabetes_no_na, DIABBC = ifelse(DIABBC == "0", 0, 1))
+
+logistic_regression = glm(y~., family=binomial, data=X)
+summary(logistic_regression)
+
+```
+
