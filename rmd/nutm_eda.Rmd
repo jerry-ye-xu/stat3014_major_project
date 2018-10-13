@@ -1,0 +1,840 @@
+---
+title: "EDA_nutm_data"
+author: 'Jerry Xu'
+subtitle: STAT3014 - Applied Statistics
+date: "10 August 2018"
+output:
+  # html_document: default
+  html_document:
+    toc: yes
+    toc_float: yes
+    
+---
+## Instructions
+
+1) Calculate summary statistics taking into account the variable definitions containted in the 
+"nutmstatDataItems2018.csv" file. Be careful to treat categorical variables appropriately.
+
+2) Take care of missing values! Determine the percentage
+of missing values in each row/column. Summarise this information in some way.
+
+3) Partition the dataset by taking subsets of rows or columns to use as many rows/columns as posssible.
+
+4) Determine what variables might be used as predictors.
+
+5) Plot some (not all historgrams). Only plot what you think is useful.
+
+6) Cluster the data. Determine a reasonable number of clusters.
+
+7) Perform a principlan component analysis. Do the principal components capture 
+potential categorial predictors in some way.
+
+
+## Exploratory Data Analysis
+
+Import necessary libraries
+```{r}
+
+library("dplyr")
+library("tidyr")
+library("ggplot2")
+library("factoextra")
+library("kmed")
+library("cluster")
+library("outliers")
+library("ggbiplot")
+```
+
+
+```{r}
+
+nutm_orig = read.csv("./nutmstatData2018.csv")
+head(nutm_orig)
+
+nutm <- nutm_orig
+col_names <- colnames(nutm_orig)
+dim(nutm_orig)
+```
+
+### Missing Values
+
+To make use of this data set, we first need to ensure that the qualitative variables are treated appropriately.
+
+We take the 144 variables in the dataset and convert them to factors where necessary, taking care to exclude the feature values that are defined to be equivalent to a null-response in the data dictionary. The result is a DataFrame with appropriate NA values that can be distinguished from meaningful feature values.
+
+Also, we produce a copy of the original data for means of comparison and checking our code. 
+
+```{r, eval=FALSE, include=FALSE}
+
+# for (i in 1:length(colNames)) { cat("categoricalList[",i,"] <- FALSE # ",colNames[i],"\n"); }
+# for (i in 1:length(colNames)) { cat("excludeList[[",i,"]] <- c() # ",colNames[i],"\n"); }
+
+```
+
+
+```{r, echo=FALSE}
+
+categoricalList <- c()
+
+categoricalList[ 1 ] <- FALSE #  BMISC 
+categoricalList[ 2 ] <- FALSE #  AGEC 
+categoricalList[ 3 ] <- TRUE #  SMSBC 
+categoricalList[ 4 ] <- TRUE #  COBBC 
+categoricalList[ 5 ] <- TRUE #  FEMLSBC 
+categoricalList[ 6 ] <- FALSE #  PHDKGWBC 
+categoricalList[ 7 ] <- FALSE #  PHDCMHBC 
+categoricalList[ 8 ] <- FALSE #  EXLWTBC 
+categoricalList[ 9 ] <- FALSE #  EXLWMBC 
+categoricalList[ 10 ] <- FALSE #  EXLWVBC 
+categoricalList[ 11 ] <- FALSE #  PHDCMWBC 
+categoricalList[ 12 ] <- FALSE #  BMR 
+categoricalList[ 13 ] <- FALSE #  EIBMR1 
+categoricalList[ 14 ] <- TRUE #  SF2SA1QN 
+categoricalList[ 15 ] <- TRUE #  INCDEC 
+categoricalList[ 16 ] <- TRUE #  DIABBC 
+categoricalList[ 17 ] <- TRUE #  HCHOLBC 
+categoricalList[ 18 ] <- TRUE #  HSUGBC 
+categoricalList[ 19 ] <- TRUE #  HYPBC 
+categoricalList[ 20 ] <- FALSE #  ENERGYT1 
+categoricalList[ 21 ] <- FALSE #  ENRGYT1 
+categoricalList[ 22 ] <- FALSE #  MOISTT1 
+categoricalList[ 23 ] <- FALSE #  PROTT1 
+categoricalList[ 24 ] <- FALSE #  FATT1 
+categoricalList[ 25 ] <- FALSE #  CHOWSAT1 
+categoricalList[ 26 ] <- FALSE #  CHOWOAT1 
+categoricalList[ 27 ] <- FALSE #  STARCHT1 
+categoricalList[ 28 ] <- FALSE #  SUGART1 
+categoricalList[ 29 ] <- FALSE #  FIBRET1 
+categoricalList[ 30 ] <- FALSE #  ALCT1 
+categoricalList[ 31 ] <- FALSE #  PREVAT1 
+categoricalList[ 32 ] <- FALSE #  PROVAT1 
+categoricalList[ 33 ] <- FALSE #  RETEQT1 
+categoricalList[ 34 ] <- FALSE #  B1T1 
+categoricalList[ 35 ] <- FALSE #  B2T1 
+categoricalList[ 36 ] <- FALSE #  B3T1 
+categoricalList[ 37 ] <- FALSE #  NIACINT1 
+categoricalList[ 38 ] <- FALSE #  FOLATT1 
+categoricalList[ 39 ] <- FALSE #  FOLICT1 
+categoricalList[ 40 ] <- FALSE #  TOTFOLT1 
+categoricalList[ 41 ] <- FALSE #  FOLEQT1 
+categoricalList[ 42 ] <- FALSE #  B6T1 
+categoricalList[ 43 ] <- FALSE #  B12T1 
+categoricalList[ 44 ] <- FALSE #  VITCT1 
+categoricalList[ 45 ] <- FALSE #  VITET1 
+categoricalList[ 46 ] <- FALSE #  CALCT1 
+categoricalList[ 47 ] <- FALSE #  IODINET1 
+categoricalList[ 48 ] <- FALSE #  IRONT1 
+categoricalList[ 49 ] <- FALSE #  MAGT1 
+categoricalList[ 50 ] <- FALSE #  PHOST1 
+categoricalList[ 51 ] <- FALSE #  POTAST1 
+categoricalList[ 52 ] <- FALSE #  SELT1 
+categoricalList[ 53 ] <- FALSE #  SODIUMT1 
+categoricalList[ 54 ] <- FALSE #  ZINCT1 
+categoricalList[ 55 ] <- FALSE #  CAFFT1 
+categoricalList[ 56 ] <- FALSE #  CHOLT1 
+categoricalList[ 57 ] <- FALSE #  SATFATT1 
+categoricalList[ 58 ] <- FALSE #  MUFATT1 
+categoricalList[ 59 ] <- FALSE #  PUFATT1 
+categoricalList[ 60 ] <- FALSE #  LAT1 
+categoricalList[ 61 ] <- FALSE #  ALAT1 
+categoricalList[ 62 ] <- FALSE #  LCN3T1 
+categoricalList[ 63 ] <- FALSE #  TRANST1 
+categoricalList[ 64 ] <- FALSE #  PROPER1 
+categoricalList[ 65 ] <- FALSE #  FATPER1 
+categoricalList[ 66 ] <- FALSE #  LAPER1 
+categoricalList[ 67 ] <- FALSE #  ALAPER1 
+categoricalList[ 68 ] <- FALSE #  CHOPER1 
+categoricalList[ 69 ] <- FALSE #  SUGPER1 
+categoricalList[ 70 ] <- FALSE #  STARPER1 
+categoricalList[ 71 ] <- FALSE #  ALCPER1 
+categoricalList[ 72 ] <- FALSE #  SATPER1 
+categoricalList[ 73 ] <- FALSE #  TRANPER1 
+categoricalList[ 74 ] <- FALSE #  FIBRPER1 
+categoricalList[ 75 ] <- FALSE #  MONOPER1 
+categoricalList[ 76 ] <- FALSE #  POLYPER1 
+categoricalList[ 77 ] <- FALSE #  ADTOTSE 
+categoricalList[ 78 ] <- TRUE #  BDYMSQ04 
+categoricalList[ 79 ] <- FALSE #  DIASTOL 
+categoricalList[ 80 ] <- TRUE #  DIETQ12 
+categoricalList[ 81 ] <- TRUE #  DIETQ14 
+categoricalList[ 82 ] <- TRUE #  DIETQ5 
+categoricalList[ 83 ] <- TRUE #  DIETQ8 
+categoricalList[ 84 ] <- TRUE #  DIETRDI 
+categoricalList[ 85 ] <- TRUE #  SABDYMS 
+categoricalList[ 86 ] <- TRUE #  SEX 
+categoricalList[ 87 ] <- FALSE #  SLPTIME 
+categoricalList[ 88 ] <- TRUE #  SMKDAILY 
+categoricalList[ 89 ] <- TRUE #  SMKSTAT 
+categoricalList[ 90 ] <- FALSE #  SYSTOL 
+categoricalList[ 91 ] <- TRUE #  ABSPID 
+categoricalList[ 92 ] <- FALSE #  GRAINS1N 
+categoricalList[ 93 ] <- FALSE #  WHOLGR1N 
+categoricalList[ 94 ] <- FALSE #  REFGRA1N 
+categoricalList[ 95 ] <- FALSE #  VEGLEG1N 
+categoricalList[ 96 ] <- FALSE #  GREENS1N 
+categoricalList[ 97 ] <- FALSE #  VGORSV1N 
+categoricalList[ 98 ] <- FALSE #  STARCH1N 
+categoricalList[ 99 ] <- FALSE #  LEGVEG1N 
+categoricalList[ 100 ] <- FALSE #  OTHVEG1N 
+categoricalList[ 101 ] <- FALSE #  FRUIT1N 
+categoricalList[ 102 ] <- FALSE #  FRJUIC1N 
+categoricalList[ 103 ] <- FALSE #  DAIRY1N 
+categoricalList[ 104 ] <- FALSE #  MEAT1N 
+categoricalList[ 105 ] <- FALSE #  RDMTL1N 
+categoricalList[ 106 ] <- FALSE #  RDMTLU1N 
+categoricalList[ 107 ] <- FALSE #  RDMTN1N 
+categoricalList[ 108 ] <- FALSE #  RDMTNU1N 
+categoricalList[ 109 ] <- FALSE #  RDMTNP1N 
+categoricalList[ 110 ] <- FALSE #  PLTYL1N 
+categoricalList[ 111 ] <- FALSE #  PLTYLU1N 
+categoricalList[ 112 ] <- FALSE #  FISH1N 
+categoricalList[ 113 ] <- FALSE #  EGGS1N 
+categoricalList[ 114 ] <- FALSE #  LEGMT1N 
+categoricalList[ 115 ] <- FALSE #  NUTS1N 
+categoricalList[ 116 ] <- FALSE #  WATER1N 
+categoricalList[ 117 ] <- FALSE #  UNSAT1N 
+categoricalList[ 118 ] <- FALSE #  FRESUG1N 
+categoricalList[ 119 ] <- FALSE #  ADDSUG1N 
+categoricalList[ 120 ] <- FALSE #  WATERG1N 
+categoricalList[ 121 ] <- FALSE #  PEFRESD1 
+categoricalList[ 122 ] <- FALSE #  PEADDSD1 
+categoricalList[ 123 ] <- TRUE #  ALTNTR 
+categoricalList[ 124 ] <- TRUE #  ALTRESB 
+categoricalList[ 125 ] <- TRUE #  APOBNTR 
+categoricalList[ 126 ] <- TRUE #  APOBRESB 
+categoricalList[ 127 ] <- TRUE #  B12RESB 
+categoricalList[ 128 ] <- TRUE #  BIORESPC 
+categoricalList[ 129 ] <- TRUE #  CHOLNTR 
+categoricalList[ 130 ] <- TRUE #  CHOLRESB 
+categoricalList[ 131 ] <- TRUE #  CVDMEDST 
+categoricalList[ 132 ] <- TRUE #  DIAHBRSK 
+categoricalList[ 133 ] <- TRUE #  FASTSTAD 
+categoricalList[ 134 ] <- TRUE #  FOLATREB 
+categoricalList[ 135 ] <- TRUE #  GGTNTR 
+categoricalList[ 136 ] <- TRUE #  GGTRESB 
+categoricalList[ 137 ] <- TRUE #  GLUCFPD 
+categoricalList[ 138 ] <- TRUE #  GLUCFREB 
+categoricalList[ 139 ] <- TRUE #  HBA1PREB 
+categoricalList[ 140 ] <- TRUE #  HDLCHREB 
+categoricalList[ 141 ] <- TRUE #  LDLNTR 
+categoricalList[ 142 ] <- TRUE #  LDLRESB 
+categoricalList[ 143 ] <- TRUE #  TRIGNTR 
+categoricalList[ 144 ] <- TRUE #  TRIGRESB 
+
+for (i in 1:length(categoricalList)) {
+  if (categoricalList[ i ]) {
+      nutm[,i] <- as.factor(nutm[  ,i])
+  }
+}
+
+excludeList <- list()
+
+excludeList[[ 1 ]] <- c(0,98,99) #  BMISC 
+excludeList[[ 2 ]] <- c() #  AGEC 
+excludeList[[ 3 ]] <- c(0) #  SMSBC 
+excludeList[[ 4 ]] <- c() #  COBBC 
+excludeList[[ 5 ]] <- c() #  FEMLSBC 
+excludeList[[ 6 ]] <- c(0,997,998,999) #  PHDKGWBC 
+excludeList[[ 7 ]] <- c(0,998,999) #  PHDCMHBC 
+excludeList[[ 8 ]] <- c(9996,9999) #  EXLWTBC 
+excludeList[[ 9 ]] <- c(9996, 9999) #  EXLWMBC 
+excludeList[[ 10 ]] <- c(9996 , 9999) #  EXLWVBC 
+excludeList[[ 11 ]] <- c(0,998,999) #  PHDCMWBC 
+excludeList[[ 12 ]] <- c(99998) #  BMR 
+excludeList[[ 13 ]] <- c(998) #  EIBMR1 
+excludeList[[ 14 ]] <- c(0,99) #  SF2SA1QN 
+excludeList[[ 15 ]] <- c(0,98,99) #  INCDEC 
+excludeList[[ 16 ]] <- c() #  DIABBC 
+excludeList[[ 17 ]] <- c() #  HCHOLBC 
+excludeList[[ 18 ]] <- c() #  HSUGBC 
+excludeList[[ 19 ]] <- c() #  HYPBC 
+excludeList[[ 20 ]] <- c() #  ENERGYT1 
+excludeList[[ 21 ]] <- c() #  ENRGYT1 
+excludeList[[ 22 ]] <- c() #  MOISTT1 
+excludeList[[ 23 ]] <- c() #  PROTT1 
+excludeList[[ 24 ]] <- c() #  FATT1 
+excludeList[[ 25 ]] <- c() #  CHOWSAT1 
+excludeList[[ 26 ]] <- c() #  CHOWOAT1 
+excludeList[[ 27 ]] <- c() #  STARCHT1 
+excludeList[[ 28 ]] <- c() #  SUGART1 
+excludeList[[ 29 ]] <- c() #  FIBRET1 
+excludeList[[ 30 ]] <- c() #  ALCT1 
+excludeList[[ 31 ]] <- c() #  PREVAT1 
+excludeList[[ 32 ]] <- c() #  PROVAT1 
+excludeList[[ 33 ]] <- c() #  RETEQT1 
+excludeList[[ 34 ]] <- c() #  B1T1 
+excludeList[[ 35 ]] <- c() #  B2T1 
+excludeList[[ 36 ]] <- c() #  B3T1 
+excludeList[[ 37 ]] <- c() #  NIACINT1 
+excludeList[[ 38 ]] <- c() #  FOLATT1 
+excludeList[[ 39 ]] <- c() #  FOLICT1 
+excludeList[[ 40 ]] <- c() #  TOTFOLT1 
+excludeList[[ 41 ]] <- c() #  FOLEQT1 
+excludeList[[ 42 ]] <- c() #  B6T1 
+excludeList[[ 43 ]] <- c() #  B12T1 
+excludeList[[ 44 ]] <- c() #  VITCT1 
+excludeList[[ 45 ]] <- c() #  VITET1 
+excludeList[[ 46 ]] <- c() #  CALCT1 
+excludeList[[ 47 ]] <- c() #  IODINET1 
+excludeList[[ 48 ]] <- c() #  IRONT1 
+excludeList[[ 49 ]] <- c() #  MAGT1 
+excludeList[[ 50 ]] <- c() #  PHOST1 
+excludeList[[ 51 ]] <- c() #  POTAST1 
+excludeList[[ 52 ]] <- c() #  SELT1 
+excludeList[[ 53 ]] <- c() #  SODIUMT1 
+excludeList[[ 54 ]] <- c() #  ZINCT1 
+excludeList[[ 55 ]] <- c() #  CAFFT1 
+excludeList[[ 56 ]] <- c() #  CHOLT1 
+excludeList[[ 57 ]] <- c() #  SATFATT1 
+excludeList[[ 58 ]] <- c() #  MUFATT1 
+excludeList[[ 59 ]] <- c() #  PUFATT1 
+excludeList[[ 60 ]] <- c() #  LAT1 
+excludeList[[ 61 ]] <- c() #  ALAT1 
+excludeList[[ 62 ]] <- c() #  LCN3T1 
+excludeList[[ 63 ]] <- c() #  TRANST1 
+excludeList[[ 64 ]] <- c() #  PROPER1 
+excludeList[[ 65 ]] <- c() #  FATPER1 
+excludeList[[ 66 ]] <- c() #  LAPER1 
+excludeList[[ 67 ]] <- c() #  ALAPER1 
+excludeList[[ 68 ]] <- c() #  CHOPER1 
+excludeList[[ 69 ]] <- c() #  SUGPER1 
+excludeList[[ 70 ]] <- c() #  STARPER1 
+excludeList[[ 71 ]] <- c() #  ALCPER1 
+excludeList[[ 72 ]] <- c() #  SATPER1 
+excludeList[[ 73 ]] <- c() #  TRANPER1 
+excludeList[[ 74 ]] <- c() #  FIBRPER1 
+excludeList[[ 75 ]] <- c() #  MONOPER1 
+excludeList[[ 76 ]] <- c() #  POLYPER1 
+excludeList[[ 77 ]] <- c(9996,9999) #  ADTOTSE 
+excludeList[[ 78 ]] <- c(0,6) #  BDYMSQ04 
+excludeList[[ 79 ]] <- c(0,998,999) #  DIASTOL 
+excludeList[[ 80 ]] <- c(0,6) #  DIETQ12 
+excludeList[[ 81 ]] <- c(0,6) #  DIETQ14 
+excludeList[[ 82 ]] <- c(0) #  DIETQ5 
+excludeList[[ 83 ]] <- c(0) #  DIETQ8 
+excludeList[[ 84 ]] <- c(0,3) #  DIETRDI 
+excludeList[[ 85 ]] <- c(0,8,9) #  SABDYMS 
+excludeList[[ 86 ]] <- c() #  SEX 
+excludeList[[ 87 ]] <- c(9998,9999) #  SLPTIME 
+excludeList[[ 88 ]] <- c() #  SMKDAILY 
+excludeList[[ 89 ]] <- c(0) #  SMKSTAT 
+excludeList[[ 90 ]] <- c(0,998,999) #  SYSTOL 
+excludeList[[ 91 ]] <- c() #  ABSPID 
+excludeList[[ 92 ]] <- c() #  GRAINS1N 
+excludeList[[ 93 ]] <- c() #  WHOLGR1N 
+excludeList[[ 94 ]] <- c() #  REFGRA1N 
+excludeList[[ 95 ]] <- c() #  VEGLEG1N 
+excludeList[[ 96 ]] <- c() #  GREENS1N 
+excludeList[[ 97 ]] <- c() #  VGORSV1N 
+excludeList[[ 98 ]] <- c() #  STARCH1N 
+excludeList[[ 99 ]] <- c() #  LEGVEG1N 
+excludeList[[ 100 ]] <- c() #  OTHVEG1N 
+excludeList[[ 101 ]] <- c() #  FRUIT1N 
+excludeList[[ 102 ]] <- c() #  FRJUIC1N 
+excludeList[[ 103 ]] <- c() #  DAIRY1N 
+excludeList[[ 104 ]] <- c() #  MEAT1N 
+excludeList[[ 105 ]] <- c() #  RDMTL1N 
+excludeList[[ 106 ]] <- c() #  RDMTLU1N 
+excludeList[[ 107 ]] <- c() #  RDMTN1N 
+excludeList[[ 108 ]] <- c() #  RDMTNU1N 
+excludeList[[ 109 ]] <- c() #  RDMTNP1N 
+excludeList[[ 110 ]] <- c() #  PLTYL1N 
+excludeList[[ 111 ]] <- c() #  PLTYLU1N 
+excludeList[[ 112 ]] <- c() #  FISH1N 
+excludeList[[ 113 ]] <- c() #  EGGS1N 
+excludeList[[ 114 ]] <- c() #  LEGMT1N 
+excludeList[[ 115 ]] <- c() #  NUTS1N 
+excludeList[[ 116 ]] <- c() #  WATER1N 
+excludeList[[ 117 ]] <- c() #  UNSAT1N 
+excludeList[[ 118 ]] <- c() #  FRESUG1N 
+excludeList[[ 119 ]] <- c() #  ADDSUG1N 
+excludeList[[ 120 ]] <- c() #  WATERG1N 
+excludeList[[ 121 ]] <- c() #  PEFRESD1 
+excludeList[[ 122 ]] <- c() #  PEADDSD1 
+excludeList[[ 123 ]] <- c(0,8) #  ALTNTR 
+excludeList[[ 124 ]] <- c(97,98) #  ALTRESB 
+excludeList[[ 125 ]] <- c(0,8) #  APOBNTR 
+excludeList[[ 126 ]] <- c(97,98) #  APOBRESB 
+excludeList[[ 127 ]] <- c(97,98) #  B12RESB 
+excludeList[[ 128 ]] <- c(0) #  BIORESPC 
+excludeList[[ 129 ]] <- c(0,8) #  CHOLNTR 
+excludeList[[ 130 ]] <- c(97,98) #  CHOLRESB 
+excludeList[[ 131 ]] <- c(0,8) #  CVDMEDST 
+excludeList[[ 132 ]] <- c(0,8) #  DIAHBRSK 
+excludeList[[ 133 ]] <- c(0) #  FASTSTAD 
+excludeList[[ 134 ]] <- c(97,98) #  FOLATREB 
+excludeList[[ 135 ]] <- c(8) #  GGTNTR 
+excludeList[[ 136 ]] <- c(97,98) #  GGTRESB 
+excludeList[[ 137 ]] <- c(0,8) #  GLUCFPD 
+excludeList[[ 138 ]] <- c(97,98) #  GLUCFREB 
+excludeList[[ 139 ]] <- c(7,8) #  HBA1PREB 
+excludeList[[ 140 ]] <- c(7,8) #  HDLCHREB 
+excludeList[[ 141 ]] <- c(0,8) #  LDLNTR 
+excludeList[[ 142 ]] <- c(97,98) #  LDLRESB 
+excludeList[[ 143 ]] <- c(0,8) #  TRIGNTR 
+excludeList[[ 144 ]] <- c(97,98) #  TRIGRESB 
+
+for (i in 1:length(excludeList)) {
+  nutm[ nutm[,i]%in%excludeList[[ i ]],i] <- NA
+}
+
+``` 
+
+
+
+```{r}
+
+head(nutm)
+
+```
+
+
+```{r}
+
+percent_missing_values <- data.frame(matrix(ncol=144, nrow=3))
+colnames(percent_missing_values) <- col_names
+
+for (i in 1:length(nutm)){
+  
+  percent_missing_values[1, i] = sum(is.na(nutm[, i]))
+  percent_missing_values[2, i] = dim(nutm)[1] - sum(is.na(nutm[, i]))
+  percent_missing_values[3, i] = percent_missing_values[1, i]/dim(nutm)[1]
+}
+
+```
+
+
+
+```{r}
+
+round_2dp <- function(x){
+  round(x, 2)
+} 
+
+percent_missing_values <- data.frame(lapply(percent_missing_values, round_2dp))
+
+rownames(percent_missing_values) <- c("missing", "not_missing", "percent_missing")
+
+# percent_missing_values[3, ]
+
+column_idx <- c(1:144)
+
+#plot(column_idx, percent_missing_values[3, ], type="h", 
+#     main="% missing values for each column", ylab="% missing values", xlab = "column_index")
+
+```
+
+```{r}
+
+pmv_transpose <- data.frame(t(percent_missing_values))
+# pmv_transpose
+
+ggplot(pmv_transpose, aes(x=column_idx, y=percent_missing, fill="purple")) + geom_bar(stat="identity") +
+  xlab("variables") + ylab("% missing") + ggtitle("% Values Missing in a Variable") +
+  guides(fill=FALSE) 
+
+```
+
+Just quickly check that we've got the right columns 
+
+```{r}
+
+table(nutm$BIORESPC)
+table(nutm$GGTNTR)
+
+```
+
+
+It seems that most of the data is complete. The majority of missing values comes from the last 20 variables in the data set, which is easily visible from the above plot.
+
+The 2 variables with slightly higher completion rates is BIORESPC (biomedical response status) for which the majority of applicants did not proceed. The remaining were already participants. 
+
+The other variable was GGTNTR, which refers to a specific protein called Gamma-glutamyl transferase, which is used to test for potential health risks for the liver and/or bile ducts. The [GGT] is increased in the blood if related health risks are present.
+
+If we examine the last 2 columns, the proteins/nutrients involved are slightly more complicated.
+
+Aminotransferases refer to a group of proteins involved in amino acid synthesis, and abnormal levels of such a protein may indicate/lead to health risks.
+
+Apolipo proteins are responsible for transferring lipids through the blood in a michelle like structure, (slight over-generalisation).
+
+Cholesterol status variables are reported here again, but this is for people who are fasting, and thus most values are missing. The cholesterol level is separated into LDL and HDL.
+
+HbA1c status (used to diagnose diabetes) is also amongst missing values here.
+
+Gamma-glutamyl transferase is used to test for potential health risks for the liver and/or bile ducts. The [GGT] is increased in the blood if related health risks are present.
+
+Fasting triglycerides (essentially stored energy) are also measured here. 
+
+We will explore the main indicators after we partition the dataset. 
+
+ 
+### Partition the Dataset 
+
+We're going to have some tests for partitioning. It may be the case we drop all the missing variables, but then we may end up with too few data.
+
+In the case that the variables are continuous, we may be able to set the values to zero without much concern. We could potentially take the same approach with categorical variables. This depends on what we find.
+
+```{r}
+
+to_drop <- c("ALTNTR", "ALTRESB", "APOBNTR", "B12RESB", "CHOLNTR",
+             "CHOLRESB", "CVDMEDST", "DIAHBRSK", "FASTSTAD", "FOLATREB",
+             "GGTRESB", "GLUCFPD", "GLUCFREB", "HBA1PREB", "HDLCHREB",
+             "LDLNTR", "LDLRESB", "TRIGNTR", "TRIGRESB")
+
+nutm_clean <- nutm[ , !(names(nutm) %in% to_drop)]
+
+head(pmv_transpose)
+```
+```{r}
+
+# Retain all columns that contain NA values, excluding the ones that were dropped earlier. 
+columns_with_missing_values <- setdiff(rownames(pmv_transpose[pmv_transpose["percent_missing"] > 0, ]), to_drop)
+columns_with_missing_values
+
+```
+
+Most of the variables with missing values are important, and most likely shouldn't be dropped if there is a single missing variable. 
+
+Let's check the total proportion of the missing values for each row.
+
+```{r}
+
+# df$na_count <- apply(is.na(df)
+num_missing_values <- as.factor(rowSums(is.na(nutm_clean)))
+idx <- c(1:(dim(nutm_clean)[1]))
+
+length(num_missing_values)
+length(idx)
+
+missing_df <- data.frame(cbind(idx, num_missing_values) )
+head(missing_df)
+
+```
+
+```{r}
+
+ggplot(missing_df, aes(x=num_missing_values)) + geom_histogram(stat="count", fill="blue") +
+  ylab("Number of rows") + ggtitle("Number of Values Missing") +
+  guides(fill=FALSE)
+
+```
+
+There are a lot of variables with 20 missing values, but it should be okay. 
+
+Ultimately it comes down to what we're looking for in the dataset. For now, simply being aware of the percentage distribution of missing values within the variables is sufficient. 
+
+The most number of missing values is 40 which is approximately one-third of the total variables. A few peaks are present with a number of rows have 28 missing variables, and over one-quarter with 20 missing variables. 
+
+We will keep the nutm_clean as it is for now.
+
+```{r}
+head(nutm_clean)
+```
+
+
+
+### Exploring Outliers 
+
+
+
+```{r}
+
+dim(nutm_clean)
+
+which(nutm_clean["AGEC"] > 99)
+which(nutm_clean["BMISC"] > 60) # Recall the BMI formula being kg/(m^2)
+
+# So assume that the average height is 165cm and BMI is 60, the weight would be 163kg. Which is obese but plausible
+
+which(nutm_clean["PHDKGWBC"] > 160) # weight
+which(nutm_clean["PHDCMHBC"] > 200) # height
+
+print("Exercise per week")
+which(nutm_clean["EXLWTBC"] > 2090) # > 2000mins/week is roughly 4.5hrs a day for exercise. It is doable is you are a professional athlete. 
+
+which(nutm_clean["EXLWMBC"] > 1000) # About 2.5hrs in a day. Suspicious but not impossible.
+which(nutm_clean["EXLWVBC"] > 1000) # Not sure about this now, 2.5hrs of vigorous exercise. If there are no strict standards for what is defined as vigorous and moderate exercise, it is best to remove this variable completely when doing analysis. 
+
+print("BMR")
+length(which(nutm_clean["BMR"] > 8000)) # The recommended DI is 8700kJ, yet only ~10% of survey results report this?? Definitely some survey bias here. 
+
+```
+
+I think it values are mostly okay. A few suspiciously high samples for each large variable, which may be suspicious but is still within reason. We don't have strong justification to label any outliers as of yet. 
+
+I also explored a few outlier tests that could potentially be used, but most were rather inappropriate for this task. 
+
+
+
+## Exploring Main Indicators
+
+Amongst the detailed nutrition information, there are a few important features we should have a look at.
+
+```{r}
+
+main_indicators = c("BMISC", 
+                    "PHDKGWBC", 
+                    "PHDCMHBC", 
+                    "EXLWTBC", 
+                    "PHDCMWBC", 
+                    "BMR", 
+#                    "SF2SA1QN",
+                    "DIASTOL",
+                    "SYSTOL",
+                    "SLPTIME",
+                    "WATERG1N")
+
+#bmi <- ggplot(nutm, aes(x = nutm$BMISC, fill = "r")) +
+#geom_density(alpha = 0.5) + geom_vline(xintercept = mean(nutm$BMISC, na.rm=TRUE), linetype="dashed", color="black", size=1) + 
+#scale_fill_discrete(labels=c("BMI")) + guides(fill=guide_legend(title=NULL))
+
+#bmi
+
+density_main_indicators <- function(variable_name){
+  
+density <- ggplot(nutm, aes(x = nutm[variable_name], fill = "r")) +
+geom_density(alpha = 0.5) + geom_vline(xintercept = mean(nutm[variable_name], na.rm=TRUE), linetype="dashed", color="black", size=1) + 
+xlab(variable_name) + 
+scale_fill_discrete(labels=c(variable_name)) + guides(fill=guide_legend(title=NULL)) 
+
+density
+}
+
+# density_main_indicators(main_indicators[i])
+
+for(i in 1:length(main_indicators)){
+  print(density_main_indicators(main_indicators[i]))
+}
+
+```
+
+ 
+ 
+### Suitable predictors?
+
+The following variables are potential areas of interest for a dietitian conducting research into
+an individual's health based on the variables provided in the data set.
+
+- DIABBC = presence of diabetes mellitus
+  - key measurements can include sugar consumption, ratio of sugar to carbohydrates and 
+    carbohydrates to other sources of nutrition. 
+  - it may be necessary to eliminate those with Diabetes Type I to avoid false positives. 
+
+- HCHOLBC = presence of high cholesterol
+
+- HSUGBC = reported high sugar levels
+  - this data may or may not be useful depending how we want to interpret this. This categorical variable is likely to 
+    not be so helpful in distinguishing between cases of diabetes/other potential health risks but can may give us insight 
+    into how participants view their health relative to their consumption. E.g. they may have never gone to check their 
+    sugar levels but their survey results indicate that their sugar consumption is much above the average of the population
+
+- HYPBC = reported hypertensive disease
+
+- SEIFA - Index of Relative Socio-Economic Disadvantage 
+  - can consider using general food habits, measurements of nutrients (or lack of) 
+  - correlation with access to nutritious food?
+  
+- BDYMSQ04 = currently on a diet
+  - This could be useful when analysing exercise/nutrition profiles. 
+  - Examine ratio of nutrition consumed (especially carbohydrates and protein) relative to the amount of weekly exercise.
+  - May help researchers understand the general public's perception of dieting strategies. 
+  
+- DIAHBRSK = risk of diabetes
+
+
+
+## Clustering 
+
+
+
+```{r}
+
+# Drop any instances that have extremely high percentage of missing values. 
+# Then drop all rows with any missing values. 
+
+nutm_cluster <- nutm_clean[complete.cases(nutm_clean), ]
+head(nutm_cluster)
+
+```
+
+Let's check for qualitative and quantitative variables
+
+```{r}
+
+str(nutm_cluster[1:25])
+
+factor_variables <- colnames(nutm_cluster[, sapply(nutm_cluster, is.factor) == TRUE])
+factor_variables
+
+integer_variables <- colnames(nutm_cluster[, sapply(nutm_cluster, is.factor) == FALSE])
+integer_variables
+
+```
+
+We will need to remove the categorical variables in order to cluster with kmeans. 
+
+We will also scale the variables. 
+
+```{r}
+
+nutm_cluster_int <- nutm_cluster[names(nutm_cluster) %in% integer_variables]
+nutm_cluster_int <- data.frame(scale(nutm_cluster_int))
+
+```
+
+This is not ideal but we can try to visualise anyway to see whether there are any clear clusters given just the quantitative variables.
+
+```{r}
+
+head(nutm_cluster_int)
+
+```
+
+```{r}
+
+nutm_kmeans = kmeans(nutm_cluster_int, 4, iter.max=10, nstart=10)
+
+fviz_cluster(nutm_kmeans, data=nutm_cluster_int, 
+             ellipse.type = "norm", 
+             ggtheme=theme_minimal()
+             )
+
+```
+
+```{r, eval=FALSE, include=FALSE}
+
+# fviz_nbclust(nutm_cluster_int, kmeans, method="wss") + geom_vline(xintercept=5, linetype=2)
+
+```
+
+This clustering doesn't really tell us that much to be honest. There is no clear separation between groups for the continous variables. 
+
+Now if we want to incorporate the quantitative variables, we'll need to convert them into some sort of distance measure. 
+
+```{r}
+
+length(integer_variables)
+length(factor_variables)
+
+```
+ 
+Reorder the variables so that we can use the Gower method to compute the distances. 
+
+```{r}
+
+nutm_cluster_reordered <- data.frame(cbind(nutm_cluster_int[, colnames(nutm_cluster_int) %in% integer_variables], 
+                                  nutm_cluster[, colnames(nutm_cluster) %in% factor_variables]))
+
+nutm_matrix <- distmix(nutm_cluster_reordered, method = "gower", idnum=1:102, idcat=103:125)
+
+```
+
+```{r}
+
+nutm_matrix[1:10, 1:10]
+
+```
+
+```{r}
+
+nutm_mediod <- fastkmed(nutm_matrix, ncluster = 4, iterate = 5)
+table(nutm_mediod$cluster)
+
+table(nutm_kmeans[1])
+
+```
+
+The clustering results are vastly different, and we don't really know what exactly the 4 groups represent either. It would seem that categorical variables have some effect in disterning between the groups, even though we don't know what they may be.
+
+```{r, eval=FALSE, include=FALSE}
+
+# fviz_nbclust(nutm_matrix, kmeans, method="wss") + geom_vline(xintercept=4, linetype=2)
+
+```
+
+The plot suggests that the number of clusters should be similar. 
+
+
+
+## Principal Component Analysis
+
+
+
+```{r}
+
+nutm_pca <- princomp(nutm_cluster_int, cor=TRUE)
+
+```
+
+```{r}
+
+nutm_pca$sdev[1:10]
+nutm_pca$scores[1:20, 1:2]
+
+```
+
+```{r}
+
+apply(nutm_cluster_int, 2, cor, nutm_pca$scores[, 1]) # apply for df over columns, FUNC=cor and you're correlating with nutm_pca scores.
+
+```
+
+```{r}
+
+plot(nutm_pca, type="l")
+
+```
+
+```{r}
+nutm_cluster_int_with_classifcation <- merge(nutm_cluster_int, nutm_kmeans$cluster, by="row.names")
+head(nutm_cluster_int_with_classifcation)
+```
+
+
+```{r}
+
+nutm_cluster_int_kmeans <- merge(nutm_cluster_int, nutm_kmeans$cluster, by="row.names")
+
+nciwc_kmeans <- nutm_cluster_int_kmeans 
+
+names(nciwc_kmeans)[names(nciwc_kmeans) == 'y'] <- "kmeans"
+nciwc_kmeans$kmeans <- as.factor(nciwc_kmeans$kmeans)
+
+head(nciwc_kmeans)
+
+```
+
+
+```{r}
+
+k_pca <- ggbiplot(nutm_pca, obs.scale = 1, var.scale = 1,
+groups = nciwc_kmeans$kmeans, ellipse = TRUE,
+circle = TRUE)
+k_pca <- k_pca + scale_color_discrete(name = '')
+print(k_pca)
+
+```
+
+```{r}
+
+nutm_cluster_int_medoids <- merge(nutm_cluster_int, nutm_mediod$cluster, by="row.names")
+nciwc_mediods <- nutm_cluster_int_medoids
+
+names(nciwc_mediods)[names(nciwc_mediods) == 'y'] <- "medoids"
+nciwc_mediods$medoids <- as.factor(nciwc_mediods$medoids)
+
+head(nciwc_mediods)
+
+```
+
+```{r}
+
+med_pca <- ggbiplot(nutm_pca, obs.scale = 1, var.scale = 1,
+groups = nciwc_mediods$medoids, ellipse = TRUE,
+circle = TRUE)
+med_pca <- med_pca + scale_color_discrete(name = '')
+print(med_pca)
+
+```
+
+For both clustering methods, it doesn't look like PCA was able to separate them out distinctly. 
