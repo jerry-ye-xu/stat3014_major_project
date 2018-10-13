@@ -10,24 +10,7 @@ output:
     toc_float: yes
     
 ---
-## Instructions
 
-1) Calculate summary statistics taking into account the variable definitions containted in the 
-"nutmstatDataItems2018.csv" file. Be careful to treat categorical variables appropriately.
-
-2) Take care of missing values! Determine the percentage
-of missing values in each row/column. Summarise this information in some way.
-
-3) Partition the dataset by taking subsets of rows or columns to use as many rows/columns as posssible.
-
-4) Determine what variables might be used as predictors.
-
-5) Plot some (not all historgrams). Only plot what you think is useful.
-
-6) Cluster the data. Determine a reasonable number of clusters.
-
-7) Perform a principlan component analysis. Do the principal components capture 
-potential categorial predictors in some way.
 
 
 ## Exploratory Data Analysis
@@ -48,7 +31,7 @@ library("ggbiplot")
 
 ```{r}
 
-nutm_orig = read.csv("./nutmstatData2018.csv")
+nutm_orig = read.csv("../data/nutmstatData2018.csv")
 head(nutm_orig)
 
 nutm <- nutm_orig
@@ -385,6 +368,7 @@ for (i in 1:length(excludeList)) {
 ```{r}
 
 head(nutm)
+write.csv(nutm, file="../output/nutmstat_factors_and_NAs.csv")
 
 ```
 
@@ -429,7 +413,7 @@ column_idx <- c(1:144)
 pmv_transpose <- data.frame(t(percent_missing_values))
 # pmv_transpose
 
-ggplot(pmv_transpose, aes(x=column_idx, y=percent_missing, fill="purple")) + geom_bar(stat="identity") +
+ggplot(pmv_transpose, aes(x=column_idx, y=(percent_missing*100), fill="purple")) + geom_bar(stat="identity") +
   xlab("variables") + ylab("% missing") + ggtitle("% Values Missing in a Variable") +
   guides(fill=FALSE) 
 
