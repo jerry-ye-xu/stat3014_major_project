@@ -1,0 +1,330 @@
+---
+title: "Project"
+author: "Ian Astalosh"
+date: "04/10/2018"
+output: html_document
+---
+
+```{r Read data, echo=FALSE}
+dat_orig <- read.csv("nutmstatData2018.csv",header=TRUE)
+
+dat <-  dat_orig
+colNames <- colnames(dat_orig)
+n = nrow(dat)
+
+numerics = c()
+categoricals = c()
+indexes = c()
+indexes_cat = c()
+```
+
+```{r data cleaning, echo=FALSE}
+##PUT THIS AT THE END
+
+BMISC_exclude <- c(0,98,99)
+dat$BMISC[dat$BMISC%in%BMISC_exclude] <- NA
+
+##AGEC no cleaning required, there is no one aged 99+
+
+dat$SMSBC = as.factor(dat$SMSBC)
+
+dat$COBBC = as.factor(dat$COBBC)
+
+dat$FEMLSBC[dat$FEMLSBC == 9] = NA
+dat$FEMLSBC = as.factor(dat$FEMLSBC)
+
+##is it worth keeping what type of NA it is?
+PHDKGWBC_exclude <- c(997,998,999)
+dat$PHDKGWBC[dat$PHDKGWBC%in%PHDKGWBC_exclude] <- NA
+
+##worth keeping the NA?
+PHDCMHBC_exclude <- c(0,998,999)
+dat$PHDCMHBC[dat$PHDCMHBC%in%PHDCMHBC_exclude] <- NA
+
+##For EXLWTBC, EXLWMBC, EXLWVBC, I'm assuming 9996 are NA's so will be removed as such.
+EXLWTBC_exclude <- c(9996,9999)
+dat$EXLWTBC[dat$EXLWTBC%in%EXLWTBC_exclude] <- NA
+
+EXLWMBC_exclude <- c(9996,9999)
+dat$EXLWMBC[dat$EXLWMBC%in%EXLWMBC_exclude] <- NA
+
+EXLWVBC_exclude <- c(9996,9999)
+dat$EXLWVBC[dat$EXLWVBC%in%EXLWVBC_exclude] <- NA
+
+PHDCMWBC_exclude <- c(0,998,999)
+dat$PHDCMWBC[dat$PHDCMWBC%in%PHDCMWBC_exclude] <- NA
+
+BMR_exclude <- 99998
+dat$BMR[dat$BMR%in%BMR_exclude] <- NA
+
+EIBMR1_exclude <- 998
+dat$EIBMR1[dat$EIBMR1%in%EIBMR1_exclude] <- NA
+
+SF2SA1QN_exclude <- c(0,99)
+dat$SF2SA1QN[dat$SF2SA1QN%in%SF2SA1QN_exclude] <- NA
+dat$SF2SA1QN = as.factor(dat$SF2SA1QN)
+
+INCDEC_exclude <- c(0,98,99)
+dat$INCDEC[dat$INCDEC%in%INCDEC_exclude] <- NA
+dat$INCDEC = as.factor(dat$INCDEC)
+
+dat$DIABBC = as.factor(dat$DIABBC)
+
+dat$HCHOLBC = as.factor(dat$HCHOLBC)
+
+dat$HSUGBC = as.factor(dat$HSUGBC)
+
+dat$HYPBC = as.factor(dat$HYPBC)
+
+ADTOTSE_exclude <- c(0,9996,9999)
+dat$ADTOTSE[dat$ADTOTSE%in%ADTOTSE_exclude] <- NA
+
+BDYMSQ04_exclude <- c(0,6)
+dat$BDYMSQ04[dat$BDYMSQ04%in%BDYMSQ04_exclude] <- NA
+dat$BDYMSQ04 = as.factor(dat$BDYMSQ04)
+
+DIASTOL_exclude <- c(0,998,999)
+dat$DIASTOL[dat$DIASTOL%in%DIASTOL_exclude] <- NA
+
+#are not known, not used valid NA values? if so, add in extra things to exclude
+DIETQ12_exclude <- c(0,6) ##may either need to include or exclude 5 or 6
+dat$DIETQ12[dat$DIETQ12%in%DIETQ12_exclude] <- NA
+dat$DIETQ12 = as.factor(dat$DIETQ12)
+
+DIETQ14_exclude <- c(0,6) ##may either need to include or exclude 5 or 6
+dat$DIETQ14[dat$DIETQ14%in%DIETQ14_exclude] <- NA
+dat$DIETQ14 = as.factor(dat$DIETQ14)
+
+DIETQ5_exclude <- 0
+dat$DIETQ5[dat$DIETQ5%in%DIETQ5_exclude] <- NA
+dat$DIETQ5 = as.factor(dat$DIETQ5)
+
+DIETQ8_exclude <- 0
+dat$DIETQ8[dat$DIETQ8%in%DIETQ8_exclude] <- NA
+dat$DIETQ8 = as.factor(dat$DIETQ8)
+
+DIETRDI_exclude <- c(0,3)
+dat$DIETRDI[dat$DIETRDI%in%DIETRDI_exclude] <- NA
+dat$DIETRDI = as.factor(dat$DIETRDI)
+
+SABDYMS_exclude <- c(0,8,9)
+dat$SABDYMS[dat$SABDYMS%in%SABDYMS_exclude] <- NA
+dat$SABDYMS = as.factor(dat$SABDYMS)
+
+dat$SEX = as.factor(dat$SEX)
+
+SLPTIME_exclude <- c(0,9998,9999)
+dat$SLPTIME[dat$SLPTIME%in%SLPTIME_exclude] <- NA
+
+SMKSTAT_exclude <- 0
+dat$SMKSTAT[dat$SMKSTAT%in%SMKSTAT_exclude] <- NA
+dat$SMKSTAT = as.factor(dat$SMKSTAT)
+
+SYSTOL_exclude <- c(0,998,999)
+dat$SYSTOL[dat$SYSTOL%in%SYSTOL_exclude] <- NA
+
+ALTNTR_exclude <- c(0,8)
+dat$ALTNTR[dat$ALTNTR%in%ALTNTR_exclude] <- NA
+dat$ALTNTR = as.factor(dat$ALTNTR)
+
+ALTRESB_exclude <- c(97,98)
+dat$ALTRESB[dat$ALTRESB%in%ALTRESB_exclude] <- NA
+dat$ALTRESB = as.factor(dat$ALTRESB)
+
+APOBNTR_exclude <- c(0,8)
+dat$APOBNTR[dat$APOBNTR%in%APOBNTR_exclude] <- NA
+dat$APOBNTR = as.factor(dat$APOBNTR)
+
+APOBRESB_exclude <- c(97,98)
+dat$APOBRESB[dat$APOBRESB%in%APOBRESB_exclude] <- NA
+dat$APOBRESB = as.factor(dat$APOBRESB)
+
+B12RESB_exclude <- c(97,98)
+dat$B12RESB[dat$B12RESB%in%B12RESB_exclude] <- NA
+dat$B12RESB = as.factor(dat$B12RESB)
+
+BIORESPC_exclude <- 0
+dat$BIORESPC[dat$BIORESPC%in%BIORESPC_exclude] <- NA
+dat$BIORESPC = as.factor(dat$BIORESPC)
+
+CHOLNTR_exclude <- c(0,8)
+dat$CHOLNTR[dat$CHOLNTR%in%CHOLNTR_exclude] <- NA
+dat$CHOLNTR = as.factor(dat$CHOLNTR)
+
+CHOLRESB_exclude <- c(97,98)
+dat$CHOLRESB[dat$CHOLRESB%in%CHOLRESB_exclude] <- NA
+dat$CHOLRESB = as.factor(dat$CHOLRESB)
+
+CVDMEDST_exclude <- c(0,8)
+dat$CVDMEDST[dat$CVDMEDST%in%CVDMEDST_exclude] <- NA
+dat$CVDMEDST = as.factor(dat$CVDMEDST)
+
+DIAHBRSK_exclude <- c(0,8)
+dat$DIAHBRSK[dat$DIAHBRSK%in%DIAHBRSK_exclude] <- NA
+dat$DIAHBRSK = as.factor(dat$DIAHBRSK)
+
+FASTSTAD_exclude <- 0
+dat$FASTSTAD[dat$FASTSTAD%in%FASTSTAD_exclude] <- NA
+dat$FASTSTAD = as.factor(dat$FASTSTAD)
+
+FOLATREB_exclude <- c(97,98)
+dat$FOLATREB[dat$FOLATREB%in%FOLATREB_exclude] <- NA
+dat$FOLATREB = as.factor(dat$FOLATREB)
+
+GGTNTR_exclude <- 8
+dat$GGTNTR[dat$GGTNTR%in%GGTNTR_exclude] <- NA
+dat$GGTNTR = as.factor(dat$GGTNTR)
+
+GGTRESB_exclude <- c(97,98)
+dat$GGTRESB[dat$GGTRESB%in%GGTRESB_exclude] <- NA
+dat$GGTRESB = as.factor(dat$GGTRESB)
+
+GLUCFPD_exclude <- c(0,8)
+dat$GLUCFPD[dat$GLUCFPD%in%GLUCFPD_exclude] <- NA
+dat$GLUCFPD = as.factor(dat$GLUCFPD)
+
+GLUCFREB_exclude <- c(97,98)
+dat$GLUCFREB[dat$GLUCFREB%in%GLUCFREB_exclude] <- NA
+dat$GLUCFREB = as.factor(dat$GLUCFREB)
+
+HBA1PREB_exclude <- c(7,8)
+dat$HBA1PREB[dat$HBA1PREB%in%HBA1PREB_exclude] <- NA
+dat$HBA1PREB = as.factor(dat$HBA1PREB)
+
+HDLCHREB_exclude <- c(7,8)
+dat$HDLCHREB[dat$HDLCHREB%in%HDLCHREB_exclude] <- NA
+dat$HDLCHREB = as.factor(dat$HDLCHREB)
+
+LDLNTR_exclude <- c(0,8)
+dat$LDLNTR[dat$LDLNTR%in%LDLNTR_exclude] <- NA
+dat$LDLNTR = as.factor(dat$LDLNTR)
+
+LDLRESB_exclude <- c(97,98)
+dat$LDLRESB[dat$LDLRESB%in%LDLRESB_exclude] <- NA
+dat$LDLRESB = as.factor(dat$LDLRESB)
+
+TRIGNTR_exclude <- c(0,8)
+dat$TRIGNTR[dat$TRIGNTR%in%TRIGNTR_exclude] <- NA
+dat$TRIGNTR = as.factor(dat$TRIGNTR)
+
+TRIGRESB_exclude <- c(0,97, 98)
+dat$TRIGRESB[dat$TRIGRESB%in%TRIGRESB_exclude] <- NA
+dat$TRIGRESB = as.factor(dat$TRIGRESB)
+
+SMKDAILY_exclude <- c(0)
+dat$SMKDAILY[dat$SMKDAILY%in%SMKDAILY_exclude] <- NA
+dat$SMKDAILY = as.factor(dat$SMKDAILY)
+```
+
+```{r, echo=FALSE}
+for (i in 1:length(colNames)){
+ if(is.factor(dat[,i]) == FALSE){
+   numerics = c(numerics, colNames[i])
+   indexes = c(indexes, i) } 
+  else {
+    categoricals = c(categoricals, colNames[i])
+    indexes_cat = c(indexes_cat, i) }
+}
+
+numeric_only = dat[,indexes]
+categorical_only = dat[,indexes_cat]
+```
+
+```{r}
+length(dat$CVDMEDST)
+table(dat$CVDMEDST)
+sum(is.na(dat$CVDMEDST))
+```
+
+
+```{r}
+library(tidyverse)
+##PREDICTORS OF INTEREST
+predictors = select(dat, BMISC, AGEC, PHDKGWBC, EXLWTBC, SF2SA1QN, INCDEC, HSUGBC, FATT1, SUGART1, PREVAT1, PROVAT1, FATPER1, LAPER1, ALAPER1, CHOPER1, SATPER1, TRANPER1, MONOPER1, POLYPER1, ADTOTSE, SEX, SMKSTAT, SYSTOL, FASTSTAD, HDLCHREB, LDLNTR, LDLRESB, B3T1)
+
+##RESPONSES OF INTEREST
+responses = select(dat, CHOLNTR, HDLCHREB, DIABBC, HCHOLBC, HYPBC, CVDMEDST)
+
+predNames = colnames(predictors)
+respNames = colnames(responses)
+
+##PREDICTORS 
+numerics=c()
+indexes=c()
+categoricals = c()
+indexes_cat=c()
+
+for (i in 1:length(predNames)){
+ if(is.factor(predictors[,i]) == FALSE){
+   numerics = c(numerics, predNames[i])
+   indexes = c(indexes, i) } 
+  else {
+    categoricals = c(categoricals, predNames[i])
+    indexes_cat = c(indexes_cat, i) }
+}
+
+numeric_only_preds = predictors[,indexes]
+categorical_only_preds = predictors[,indexes_cat]
+
+##PREDICTOR CATEGORICAL DENSITY PLOTS
+for (i in 1:dim(numeric_only_preds)[2]){
+  plot(density(na.omit(numeric_only_preds[,i])))
+}
+
+numeric_only_preds = predictors[,indexes]
+categorical_only_preds = predictors[,indexes_cat]
+
+for (i in 1:dim(numeric_only_preds)[2]){
+ boxplot(na.omit(numeric_only_preds[,i]))
+}
+```
+```{r}
+#PERCENTAGE MISSING IN OUR VARIABLES OF INTEREST
+total = cbind(responses, predictors)
+image(is.na(t(total)))
+
+perc_miss_tot = apply(is.na(total), 2, mean)
+missing_data_tot = data.frame(Names = names(perc_miss_tot), Percent_Missing = perc_miss_tot)
+
+missing_data_tot
+
+```
+
+There is extremely high missingness in total cholsterol, HDL cholsterol and Dyslipidemia. It doesn't really make sense to impute the outcome vector, so create a new matrix that removes NA's in the outcomes:
+
+```{r}
+
+#Probably a faster way of doing this, but this systematically removes the rows containing missing values in each column
+rem1 = total[!is.na(total$CHOLNTR),]
+rem2 = total[!is.na(total$HDLCHREB),]
+rem3 = total[!is.na(total$CVDMEDST),]
+
+dim(rem3) 
+image(is.na(t(rem3)))
+
+perc_miss_new = 100*apply(is.na(rem3), 2, mean)
+missing_data_new = data.frame(Var = names(perc_miss_new), Percent_Missing = perc_miss_new)
+missing_data_new
+```
+The variable containing the most missingness is income per household (INCDEC) at like 5%. From here, we can either remove the existing rows containing NA's, potentially remove INCDEC (if we really wanted to, since socio economic status and incdec ) or impute the missingness from here. 
+
+```{r}
+omitted_rem3 = na.omit(rem3)
+dim(omitted_rem3)
+100*dim(omitted_rem3)[1]/dim(rem3)[1]
+```
+Removing all NA's results in a loss of 13% of the entries (which I don't think is terrible, we still have 2718 observations)
+
+If we remove INDEC (which is probably related to socio-economic factor, although they only have 36% correlation) and then omit NA's then:
+
+```{r}
+noinc = rem3[, -12]
+new = na.omit(noinc)
+dim(new)
+100*dim(new)[1]/dim(rem3)[1]
+```
+ie. only lose 92%. Maybe worth bringing up with group to see what variables are valid and not valid to be dropped. 
+
+
+
+

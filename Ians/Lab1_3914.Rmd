@@ -1,0 +1,578 @@
+---
+title: "STAT3914: Lab 1"
+author: 'Ian Astalosh'
+subtitle: Lab
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE, warnings=FALSE}
+#install.packages("ggplot2")
+#install.packages("ggfortify")
+#install.packages("kableExtra")
+#install.packages("gridExtra")
+#install.packages("factoextra")
+
+library(ggplot2)
+library(ggfortify)
+library(kableExtra)
+library(gridExtra)
+suppressMessages(library(factoextra, quietly=TRUE, warn.conflicts = FALSE))
+```
+
+```{r Read data, echo=FALSE}
+dat_orig <- read.csv("nutmstatData2018.csv",header=TRUE)
+
+dat <-  dat_orig
+colNames <- colnames(dat_orig)
+n = nrow(dat)
+
+numerics = c()
+categoricals = c()
+indexes = c()
+indexes_cat = c()
+```
+
+```{r data cleaning, echo=FALSE}
+##PUT THIS AT THE END
+
+BMISC_exclude <- c(0,98,99)
+dat$BMISC[dat$BMISC%in%BMISC_exclude] <- NA
+
+##AGEC no cleaning required, there is no one aged 99+
+
+dat$SMSBC = as.factor(dat$SMSBC)
+
+dat$COBBC = as.factor(dat$COBBC)
+
+dat$FEMLSBC[dat$FEMLSBC == 9] = NA
+dat$FEMLSBC = as.factor(dat$FEMLSBC)
+
+##is it worth keeping what type of NA it is?
+PHDKGWBC_exclude <- c(997,998,999)
+dat$PHDKGWBC[dat$PHDKGWBC%in%PHDKGWBC_exclude] <- NA
+
+##worth keeping the NA?
+PHDCMHBC_exclude <- c(0,998,999)
+dat$PHDCMHBC[dat$PHDCMHBC%in%PHDCMHBC_exclude] <- NA
+
+##For EXLWTBC, EXLWMBC, EXLWVBC, I'm assuming 9996 are NA's so will be removed as such.
+EXLWTBC_exclude <- c(9996,9999)
+dat$EXLWTBC[dat$EXLWTBC%in%EXLWTBC_exclude] <- NA
+
+EXLWMBC_exclude <- c(9996,9999)
+dat$EXLWMBC[dat$EXLWMBC%in%EXLWMBC_exclude] <- NA
+
+EXLWVBC_exclude <- c(9996,9999)
+dat$EXLWVBC[dat$EXLWVBC%in%EXLWVBC_exclude] <- NA
+
+PHDCMWBC_exclude <- c(0,998,999)
+dat$PHDCMWBC[dat$PHDCMWBC%in%PHDCMWBC_exclude] <- NA
+
+BMR_exclude <- 99998
+dat$BMR[dat$BMR%in%BMR_exclude] <- NA
+
+EIBMR1_exclude <- 998
+dat$EIBMR1[dat$EIBMR1%in%EIBMR1_exclude] <- NA
+
+SF2SA1QN_exclude <- c(0,99)
+dat$SF2SA1QN[dat$SF2SA1QN%in%SF2SA1QN_exclude] <- NA
+dat$SF2SA1QN = as.factor(dat$SF2SA1QN)
+
+INCDEC_exclude <- c(0,98,99)
+dat$INCDEC[dat$INCDEC%in%INCDEC_exclude] <- NA
+dat$INCDEC = as.factor(dat$INCDEC)
+
+dat$DIABBC = as.factor(dat$DIABBC)
+
+dat$HCHOLBC = as.factor(dat$HCHOLBC)
+
+dat$HSUGBC = as.factor(dat$HSUGBC)
+
+dat$HYPBC = as.factor(dat$HYPBC)
+
+ADTOTSE_exclude <- c(0,9996,9999)
+dat$ADTOTSE[dat$ADTOTSE%in%ADTOTSE_exclude] <- NA
+
+BDYMSQ04_exclude <- c(0,6)
+dat$BDYMSQ04[dat$BDYMSQ04%in%BDYMSQ04_exclude] <- NA
+dat$BDYMSQ04 = as.factor(dat$BDYMSQ04)
+
+DIASTOL_exclude <- c(0,998,999)
+dat$DIASTOL[dat$DIASTOL%in%DIASTOL_exclude] <- NA
+
+#are not known, not used valid NA values? if so, add in extra things to exclude
+DIETQ12_exclude <- c(0,6) ##may either need to include or exclude 5 or 6
+dat$DIETQ12[dat$DIETQ12%in%DIETQ12_exclude] <- NA
+dat$DIETQ12 = as.factor(dat$DIETQ12)
+
+DIETQ14_exclude <- c(0,6) ##may either need to include or exclude 5 or 6
+dat$DIETQ14[dat$DIETQ14%in%DIETQ14_exclude] <- NA
+dat$DIETQ14 = as.factor(dat$DIETQ14)
+
+DIETQ5_exclude <- 0
+dat$DIETQ5[dat$DIETQ5%in%DIETQ5_exclude] <- NA
+dat$DIETQ5 = as.factor(dat$DIETQ5)
+
+DIETQ8_exclude <- 0
+dat$DIETQ8[dat$DIETQ8%in%DIETQ8_exclude] <- NA
+dat$DIETQ8 = as.factor(dat$DIETQ8)
+
+DIETRDI_exclude <- c(0,3)
+dat$DIETRDI[dat$DIETRDI%in%DIETRDI_exclude] <- NA
+dat$DIETRDI = as.factor(dat$DIETRDI)
+
+SABDYMS_exclude <- c(0,8,9)
+dat$SABDYMS[dat$SABDYMS%in%SABDYMS_exclude] <- NA
+dat$SABDYMS = as.factor(dat$SABDYMS)
+
+dat$SEX = as.factor(dat$SEX)
+
+SLPTIME_exclude <- c(0,9998,9999)
+dat$SLPTIME[dat$SLPTIME%in%SLPTIME_exclude] <- NA
+
+SMKSTAT_exclude <- 0
+dat$SMKSTAT[dat$SMKSTAT%in%SMKSTAT_exclude] <- NA
+dat$SMKSTAT = as.factor(dat$SMKSTAT)
+
+SYSTOL_exclude <- c(0,998,999)
+dat$SYSTOL[dat$SYSTOL%in%SYSTOL_exclude] <- NA
+
+ALTNTR_exclude <- c(0,8)
+dat$ALTNTR[dat$ALTNTR%in%ALTNTR_exclude] <- NA
+dat$ALTNTR = as.factor(dat$ALTNTR)
+
+ALTRESB_exclude <- c(97,98)
+dat$ALTRESB[dat$ALTRESB%in%ALTRESB_exclude] <- NA
+dat$ALTRESB = as.factor(dat$ALTRESB)
+
+APOBNTR_exclude <- c(0,8)
+dat$APOBNTR[dat$APOBNTR%in%APOBNTR_exclude] <- NA
+dat$APOBNTR = as.factor(dat$APOBNTR)
+
+APOBRESB_exclude <- c(97,98)
+dat$APOBRESB[dat$APOBRESB%in%APOBRESB_exclude] <- NA
+dat$APOBRESB = as.factor(dat$APOBRESB)
+
+B12RESB_exclude <- c(97,98)
+dat$B12RESB[dat$B12RESB%in%B12RESB_exclude] <- NA
+dat$B12RESB = as.factor(dat$B12RESB)
+
+BIORESPC_exclude <- 0
+dat$BIORESPC[dat$BIORESPC%in%BIORESPC_exclude] <- NA
+dat$BIORESPC = as.factor(dat$BIORESPC)
+
+CHOLNTR_exclude <- c(0,8)
+dat$CHOLNTR[dat$CHOLNTR%in%CHOLNTR_exclude] <- NA
+dat$CHOLNTR = as.factor(dat$CHOLNTR)
+
+CHOLRESB_exclude <- c(97,98)
+dat$CHOLRESB[dat$CHOLRESB%in%CHOLRESB_exclude] <- NA
+dat$CHOLRESB = as.factor(dat$CHOLRESB)
+
+CVDMEDST_exclude <- c(0,8)
+dat$CVDMEDST[dat$CVDMEDSTB%in%CVDMEDST_exclude] <- NA
+dat$CVDMEDST = as.factor(dat$CVDMEDST)
+
+DIAHBRSK_exclude <- c(0,8)
+dat$DIAHBRSK[dat$DIAHBRSK%in%DIAHBRSK_exclude] <- NA
+dat$DIAHBRSK = as.factor(dat$DIAHBRSK)
+
+FASTSTAD_exclude <- 0
+dat$FASTSTAD[dat$FASTSTAD%in%FASTSTAD_exclude] <- NA
+dat$FASTSTAD = as.factor(dat$FASTSTAD)
+
+FOLATREB_exclude <- c(97,98)
+dat$FOLATREB[dat$FOLATREB%in%FOLATREB_exclude] <- NA
+dat$FOLATREB = as.factor(dat$FOLATREB)
+
+GGTNTR_exclude <- 8
+dat$GGTNTR[dat$GGTNTR%in%GGTNTR_exclude] <- NA
+dat$GGTNTR = as.factor(dat$GGTNTR)
+
+GGTRESB_exclude <- c(97,98)
+dat$GGTRESB[dat$GGTRESB%in%GGTRESB_exclude] <- NA
+dat$GGTRESB = as.factor(dat$GGTRESB)
+
+GLUCFPD_exclude <- c(0,8)
+dat$GLUCFPD[dat$GLUCFPD%in%GLUCFPD_exclude] <- NA
+dat$GLUCFPD = as.factor(dat$GLUCFPD)
+
+GLUCFREB_exclude <- c(97,98)
+dat$GLUCFREB[dat$GLUCFREB%in%GLUCFREB_exclude] <- NA
+dat$GLUCFREB = as.factor(dat$GLUCFREB)
+
+HBA1PREB_exclude <- c(7,8)
+dat$HBA1PREB[dat$HBA1PREB%in%HBA1PREB_exclude] <- NA
+dat$HBA1PREB = as.factor(dat$HBA1PREB)
+
+HDLCHREB_exclude <- c(7,8)
+dat$HDLCHREB[dat$HDLCHREB%in%HDLCHREB_exclude] <- NA
+dat$HDLCHREB = as.factor(dat$HDLCHREB)
+
+LDLNTR_exclude <- c(0,8)
+dat$LDLNTR[dat$LDLNTR%in%LDLNTR_exclude] <- NA
+dat$LDLNTR = as.factor(dat$LDLNTR)
+
+LDLRESB_exclude <- c(97,98)
+dat$LDLRESB[dat$LDLRESB%in%LDLRESB_exclude] <- NA
+dat$LDLRESB = as.factor(dat$LDLRESB)
+
+TRIGNTR_exclude <- c(0,8)
+dat$TRIGNTR[dat$TRIGNTR%in%TRIGNTR_exclude] <- NA
+dat$TRIGNTR = as.factor(dat$TRIGNTR)
+
+TRIGRESB_exclude <- c(0,97, 98)
+dat$TRIGRESB[dat$TRIGRESB%in%TRIGRESB_exclude] <- NA
+dat$TRIGRESB = as.factor(dat$TRIGRESB)
+
+SMKDAILY_exclude <- c(0)
+dat$SMKDAILY[dat$SMKDAILY%in%SMKDAILY_exclude] <- NA
+dat$SMKDAILY = as.factor(dat$SMKDAILY)
+```
+
+```{r, echo=FALSE}
+for (i in 1:length(colNames)){
+ if(is.factor(dat[,i]) == FALSE){
+   numerics = c(numerics, colNames[i])
+   indexes = c(indexes, i) } 
+  else {
+    categoricals = c(categoricals, colNames[i])
+    indexes_cat = c(indexes_cat, i) }
+}
+
+numeric_only = dat[,indexes]
+categorical_only = dat[,indexes_cat]
+```
+## Data Structure and Missing Values
+
+Exploratory data anaylsis was performed on the Australian Health Survey 2011-2012 dataset. The data was presented in an Excel spreadsheet containing 12,153 rows (instances) and 144 columns (observations). This included numerical and categorical variables:
+
+```{r, echo=FALSE, messages=FALSE, fig=TRUE}
+typesofvars = matrix(c(dim(numeric_only)[2], dim(categorical_only)[2]), nrow=2)
+rownames(typesofvars) = c("Number of Continuous Variables", "Number of Categorical Variables")
+colnames(typesofvars) = c("Count")
+output = kable(typesofvars, caption = "Type of Variable")
+kable_styling(output, latex_options = "hold_position")
+```
+
+We firstly conducted a preliminary examination of the missing values in the dataset. Below is a simple representation of the amount of missingness per column, with red indicating a value is present and yellow indicating an NA. As can be seen, most variables do not have any missingness, however there are some with extremely high percentages.
+
+\bigskip
+
+```{r, echo=FALSE, fig=TRUE, fig.align="center"}
+image(is.na(t(dat)), asp=0.4, main = "Missing Data", xlab = "Variables", width = 5)
+#data_vis = vis_dat(dat, warn_large_data = FALSE) + ggtitle("Types of Factors and Missing Data") + theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank())
+```
+
+\bigskip
+
+We also examined the percentages of missingness for each variable. These numbers are included in tables later on, but for now we include density plots of the percentage of missing variables per numerical and categorical variables.
+
+\bigskip
+
+```{r, echo=FALSE}
+##PERCENTAGE MISSINGNESS OF EACH COLUMN
+perc_miss = apply(is.na(dat), 2, mean)
+missing_data = data.frame(Percent_Missing = perc_miss)
+total_miss = round(100*sum(is.na(dat))/(dim(dat)[1]*dim(dat)[2]),2) #Total Missingness
+
+##FOR THE NUMERIC ONLY VARIABLES
+perc_miss_num = apply(is.na(numeric_only), 2, mean)
+missing_data_num = data.frame(Percent_Missing = perc_miss_num)
+total_miss_num = round(100*sum(is.na(numeric_only))/(dim(numeric_only)[1]*dim(numeric_only)[2]),2)
+
+##FOR THE CATEGORICAL VARIABLES
+perc_miss_cat = apply(is.na(categorical_only), 2, mean)
+
+total_miss_cat = round(100*sum(is.na(categorical_only))/(dim(categorical_only)[1]*dim(categorical_only)[2]),2)
+
+num_miss = ggplot(as.data.frame(perc_miss_num), aes(x=perc_miss_num)) + geom_density(colour = "green", fill = "green") + ggtitle("Percentage Missing Data (Continuous Variables)") + xlab("Percentage Missing") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+cat_miss = ggplot(as.data.frame(perc_miss_cat), aes(x=perc_miss_cat)) + geom_density(colour = "green", fill = "green") + ggtitle("Percentage Missing Data (Categorical Variables)") + xlab("Percentage Missing") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+grid.arrange(num_miss, cat_miss, ncol=2, heights = c(2,2))
+```
+
+\bigskip
+
+The continuous variables generally had low levels of missingness, while categorical variables either had no missingness or approximately 60% missingness. 12 categorical variables contained no missing values, while 19 values contained at least 60% missingness. This may be important to take into account when doing further analysis later on.
+
+## Summary Statistics and Potential Response Variables
+
+Below are listed both continuous and categorical variables that may be examined further as potential response variables. For the continuous variables, five number summaries are available (a full table of summary data for continuous variables is available in the appendix). At this stage, with little input from dieticians, it is hard to determine what variables may be suitable as responses. I think it may be useful to attempt to predict:
+
+**Continuous Variables:**
+
+\begin{itemize}
+\item BMI (BMISC)
+\item Weight (PHDKGWBC)
+\item Basal Metabolic Rate (BMR)
+\item Diastolic Blood Pressure (DIASTOL)
+\end{itemize}
+
+```{r, echo=FALSE, fig=TRUE}
+quick = matrix(0,4,7)
+sum1 = summary(numeric_only$BMISC)
+sum2 = summary(numeric_only$PHDKGWBC)
+sum3 = summary(numeric_only$BMR)
+sum4 = summary(numeric_only$DIASTOL)
+
+quick[1,] = sum1
+quick[2,] = sum2
+quick[3,] = sum3
+quick[4,] = sum4
+
+quick[,7] = 100*quick[,7]/n
+
+quickTable = signif(quick,4)
+
+colnames(quickTable) = c("Min.","1st Qu.","Median","Mean","3rd Qu.","Max.","Perc NAs")
+rownames(quickTable) = c("BMI", "Weight", "BMR", "Diastolic Blood Pressure")
+quickTable = round(quickTable, 2)
+
+quickertable = kable(quickTable, caption = "Summary Statistics of Selected Continuous Variables")
+kable_styling(quickertable, latex_options = "hold_position")
+```
+
+**Categorical Variables:** 
+
+  \begin{itemize}
+    \item Total Cholesterol (CHOLRESB)
+    \item Whether told has High Sugar Levels (HSUGBC)
+    \item Risk of Diabetes (DIAHBRSK)
+  \end{itemize}
+
+Clearly, which variables we ultimately treat at responses depends on the research question being asked. However, from a preliminary standpoint with limited background information, I believe these would be of particular interest.
+
+## Density Plots of Continuous Variables
+
+Density plots of some continuous variables are included below. BMI, blood pressure, weight and basal metabolic rate are included because they may be noteworthy response variables. Age and minutes spent lying down are included because they may be useful predictors. 
+
+```{r,echo=FALSE,fig=TRUE, warning=FALSE}
+bmi_plot = ggplot(as.data.frame(dat$BMISC), aes(x=dat$BMISC)) + geom_density(colour = "blue", fill = "lightblue") + ggtitle("BMI") + xlab("BMISC") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+agec_plot = ggplot(as.data.frame(dat$AGEC), aes(x=dat$AGEC)) + geom_density(colour = "blue", fill = "lightblue") + ggtitle("Age") + xlab("AGEC") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+weight_plot = ggplot(as.data.frame(dat$PHDKGWBC), aes(x=dat$PHDKGWBC)) + geom_density(colour = "blue", fill = "lightblue") + ggtitle("Weight") + xlab("PHDKGWBC") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+adtotse_plot = ggplot(as.data.frame(dat$ADTOTSE), aes(x=dat$ADTOTSE)) + geom_density(colour = "blue", fill = "lightblue") + ggtitle("Mins Sitting or Lying Down") + xlab("ADTOTSE") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+diastol_plot = ggplot(as.data.frame(dat$DIASTOL), aes(x=dat$DIASTOL)) + geom_density(colour = "blue", fill = "lightblue") + ggtitle("Diastolic Blood Pressure") + xlab("DIASTOL") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+bmr_plot = ggplot(as.data.frame(dat$BMR), aes(x=dat$BMR)) + geom_density(colour = "blue", fill = "lightblue") + ggtitle("Basal Metabolic Rate") + xlab("BMR") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+grid.arrange(bmi_plot, agec_plot, weight_plot, adtotse_plot, diastol_plot, bmr_plot, ncol=3)
+
+
+#plot(density(dat$BMISC,na.rm=TRUE), main = "BMISC")
+#plot(density(dat$AGEC,na.rm=TRUE), main = "AGEC")
+#plot(density(dat$PHDKGWBC,na.rm=TRUE), main = "PHDKGWBC")
+#plot(density(dat$ADTOTSE,na.rm=TRUE), main = "ADTOTSE")
+#plot(density(dat$DIASTOL,na.rm=TRUE), main = "DIASTOL")
+#plot(density(dat$SYSTOL,na.rm=TRUE), main = "SYSTOL")
+```
+
+As can be seen, some variables are approximately normal while others are slightly more exotic. Diastolic blood pressure appears to be almost perfectly normally distributed, while Weight and BMR are almost normal with some kinks. BMI and Minutes spent lying down are both right skewed, and it appears there is a healthy mix of different ages present in the study.
+
+## Barplots of Categorical Variables
+
+A few barplots of categorical variables are also included. In particular, the first row shows plots relating to the design of the experiment, so these are things that may act as predictors. The second row contains classification/status of various diseases, and so may be useful in attempting to predict the presence of diseases. 
+
+
+```{r, echo = FALSE, fig=TRUE}
+#par(mfrow=c(2,3))
+#barplot(table(categorical_only$SEX), ylab = "Count", xlab = "Group", main="SEX")
+#barplot(table(categorical_only$INCDEC), ylab = "Count", xlab = "Group", main="INCDEC")
+#barplot(table(categorical_only$SF2SA1QN), ylab = "Count", xlab = "Group", main="SF2SA1QN")
+#barplot(table(categorical_only$DIABBC), ylab = "Count", xlab = "Group", main="DIABBC")
+#barplot(table(categorical_only$HCHOLBC), ylab = "Count", xlab = "Group", main="HCHOLBC")
+#barplot(table(categorical_only$HSUGBC), ylab = "Count", xlab = "Group", main="HSUGBC")
+
+sex_plot = ggplot(as.data.frame(categorical_only$SEX), aes(x = categorical_only$SEX)) + geom_bar(fill = "purple") + ggtitle("Sex") + xlab("SEX") + ylab("Count") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+incdec_plot = ggplot(as.data.frame(categorical_only$INCDEC), aes(x = categorical_only$INCDEC)) + geom_bar(fill = "purple") + ggtitle("Household Income (Deciles)") + xlab("INCDEC") + ylab("Count") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+sf2s_plot = ggplot(as.data.frame(categorical_only$SF2SA1QN), aes(x = categorical_only$SF2SA1QN)) + geom_bar(fill = "purple") + ggtitle("Socio-Economic Disadvantage") + xlab("SF2SA1QN") + ylab("Count") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+diahbrsk_plot = ggplot(as.data.frame(categorical_only$DIAHBRSK), aes(x = categorical_only$DIAHBRSK)) + geom_bar(fill = "purple") + ggtitle("Risk of Diabetes") + xlab("DIAHBRSK") + ylab("Count") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+hchol_plot = ggplot(as.data.frame(categorical_only$HCHOLBC), aes(x = categorical_only$HCHOLBC)) + geom_bar(fill = "purple") + ggtitle("Has High Cholesterol?") + xlab("HCHOLBC") + ylab("Count") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+hsug_plot = ggplot(as.data.frame(categorical_only$HSUGBC), aes(x = categorical_only$HSUGBC)) + geom_bar(fill = "purple") + ggtitle("Has High Blood Sugar?") + xlab("HSUGBC") + ylab("Count") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+grid.arrange(sex_plot, incdec_plot, sf2s_plot, diahbrsk_plot, hchol_plot, hsug_plot, ncol=3)
+```
+
+We note from this, an approximately equal number of male and female respondents were surveyed, from all walks of income and social inequality status.  
+
+In the second row, we see that serious health diseases are relatively rare in this study. For diabetes, most participants are in the healthy range with few at risk and fewer having diabetes. Similarly, the vast majority of participants have never been told they have high cholesterol or high blood sugar. 
+
+\begin{center}
+\textbf{Clustering and PCA begins on the next page}
+\end{center}
+
+\newpage
+
+## Clustering 
+We now attempt to cluster the data. Although clustering can be done on mixed datasets, for the moment we only will consider k-means clustering on the continuous variables. To work with a complete dataset, we must firstly remove the NA values. We consider two methods of systematically removing the missing data:
+
+\begin{itemize}
+\item All rows that contain NA's
+\item All columns that contain NA's
+\end{itemize}
+
+Other options could be removing the columns with high percentages of NA's and then removing the remaining rows, however we still stick with these two simple methods first. We examine how much data will be lost by each of the above methods:
+
+```{r, echo=FALSE, fig=TRUE}
+orig_actual_values = sum(!is.na(dat))
+
+remove_na_rows = na.omit(numeric_only)
+remove_na_columns = t(na.omit(t(numeric_only)))
+
+perc_after_rows = ((dim(remove_na_rows)[1]*dim(remove_na_rows)[2])/orig_actual_values)*100
+perc_after_rows = round(perc_after_rows,2)
+perc_after_cols = ((dim(remove_na_columns)[1]*dim(remove_na_columns)[2])/orig_actual_values)*100
+perc_after_cols = round(perc_after_cols,2)
+
+output = matrix(c(perc_after_rows, perc_after_cols), nrow=2)
+rownames(output) = c("Removing rows with NA's", "Removing columns with NA's")
+colnames(output) = c("Percentage of original data remaining")
+nextoutput = kable(output, caption = "Percentage of Data Remaining after Subsetting")
+kable_styling(nextoutput, latex_options = "hold_position")
+```
+
+As can be seen, both methods lose relatively high amounts of data, but for the moment we will proceed by attempting to cluster and do PCA on the data with columns containing NA's removed.
+
+We will now attempt to cluster the data using the method of k-means. In order to select an appropriate number of clusters, we consider the Within Cluster Sum of Squares for a number of different cluster sets:
+
+```{r, echo=FALSE, fig=TRUE, fig.align="center"}
+scaled_sub = scale(remove_na_columns) 
+df = as.data.frame(scaled_sub)
+
+fviz_nbclust(df, kmeans, method = "wss", iter.max=20) + theme(plot.margin = margin(1,1,1,1, "cm"))
+```
+
+\bigskip
+
+The plot would suggest 2,3 or 4 are appropriate. We will consider 3:
+
+```{r, echo=FALSE}
+clustering = kmeans(df, centers=3)
+clustsize = as.matrix(clustering$size)
+colnames(clustsize) = "Size of Cluster"
+rownames(clustsize) = c("Cluster 1", "Cluster 2", "Cluster 3")
+clustsize_tab = kable(clustsize, caption = "Size of Clusters")
+kable_styling(clustsize_tab, latex_options = "hold_position")
+```
+
+\bigskip
+
+We will then see how this clustering translates in the PCA. 
+
+## PCA
+A Principal Components Analysis is carried out on the scaled, numeric-only data. The first four principal components are listed below:
+
+\bigskip
+
+```{r, echo=FALSE, fig=TRUE}
+##PCA ATTEMPT 1
+##SUBSETTING ON A DATAFRAME THAT HAS NO MISSING VALUES, ie. getting rid of all rows and columns that have missing values
+pc1 = prcomp(scaled_sub, retx=T)
+summ = summary(pc1)
+
+tableout = kable(summ$importance[,(1:4)], caption = "First 4 Principal Components")
+kable_styling(tableout, bootstrap_options = "bordered", latex_options = "hold_position")
+```
+
+\bigskip
+
+As can be seen, the PCA may not offer any strong insight as the first four principal components only explain approximately 40% of the data. To see how many may be appropriate, we consider a scree plot:
+
+\bigskip
+
+```{r, echo=FALSE, fig=TRUE}
+##FOR PLOTTING PCA, GGFORTIFY
+pve <- 100*pc1$sdev^2/sum(pc1$sdev^2)
+scree_data = data.frame(PVE = pve, CumPVE = cumsum(pve))
+
+screeplot = ggplot(scree_data, aes(x=1:nrow(scree_data), y=PVE)) + geom_point(size=0.8) + geom_line(colour = "blue") + ggtitle("Principal Variance Explained") + xlab("Principal Component") + ylab("Variance Explained") + theme(plot.title = element_text(hjust = 0.5))
+
+cumplot = ggplot(scree_data, aes(x=1:nrow(scree_data), y=CumPVE)) + geom_point(size=0.8) + geom_line(colour = "red") + ggtitle("Cumulative PV Explained") + xlab("Principal Component") + ylab("Cumulative Variance Explained") + theme(plot.title = element_text(hjust = 0.5))
+
+grid.arrange(screeplot, cumplot, ncol=2, heights = c(2,2))
+```
+
+\bigskip
+\bigskip
+
+This indicates somewhere between 10 and 20 principal components may be appropriate, however even when taking 20, that only corresponds to approximately 80% of the variance of the data. 
+
+Finally, we consider a plot using only the first two principal components in an attempt to visualise the data. Note, the first two principal components  only explain approximately 28% of the variation so we are not expecting too much. 
+
+\bigskip
+
+```{r, echo=FALSE, fig=TRUE, warnings=FALSE, message=FALSE}
+#plot1 = autoplot(pc1, data=dat, colour=SEX, main="Splitting by Gender") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+#plot2 = autoplot(pc1, data=dat, colour=dat$INCDEC, main="Splitting by Income") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+#plot3 = autoplot(pc1, data=scaled_sub, colour=clustering$cluster, main="Splitting by Cluster") + theme(plot.title = element_text(hjust = 0.5, size=10), axis.title.x = element_text(size=7), axis.title.y = element_text(size=7))
+
+                 
+#loadings = TRUE, loadings.colour = 'purple', loadings.label = TRUE, loadings.label.size = 3, loadings.label.colour = 'red')
+
+datres = cbind(pc1$x[,(1:2)], dat$SEX, dat$INCDEC, clustering$cluster)
+newdatres = as.data.frame(na.omit(datres))
+
+plot1 = ggplot(newdatres, aes(x=newdatres$PC1, y=newdatres$PC2, colour = as.factor(newdatres$V3))) + geom_point(size=0.4) + ggtitle("Splitting by Gender") + xlab("PC1 (19.34%)") + ylab("PC2 (8.85%") + labs(colour='Male = 1, Female = 2') 
+
+plot2 = ggplot(newdatres, aes(x=newdatres$PC1, y=newdatres$PC2, colour = as.factor(newdatres$V4))) + geom_point(size=0.4) + ggtitle("Splitting by Income") + xlab("PC1 (19.34%)") + ylab("PC2 (8.85%") + labs(colour='Income Decile') 
+
+plot3 = ggplot(newdatres, aes(x=newdatres$PC1, y=newdatres$PC2, colour = as.factor(newdatres$V5))) + geom_point(size=0.4) + ggtitle("Splitting by Cluster") + xlab("PC1 (19.34%)") + ylab("PC2 (8.85%") + labs(colour='Cluster') 
+
+grid.arrange(plot1, plot2, plot3, ncol = 2)
+```
+
+From these plots, we note firstly the first two principal components are not good at separating the data. Then, we see extremely little separation based on gender and virtually no separation (at least that is visible) based on household income. However, it would appear the data is clustered nicely and we expect this to be carried through the PCA, although it appears too nice and I suspect that this has been done incorrectly.
+
+\bigskip
+
+\begin{center}
+\textbf{This is the end of the analysis - the Appendix is on the next page}
+\end{center}
+
+\newpage
+
+## Appendix: 
+
+```{r, echo=FALSE}
+Perc_Missing = perc_miss_cat
+disp = kable(round(as.data.frame(Perc_Missing),2), caption = "Percentage of Missingness in Categorical Variables")
+kable_styling(disp, latex_options = "hold_position")
+```
+
+```{r, echo=FALSE, warnings=FALSE}
+summaryTable = matrix(0,length(numerics),7)
+for (i in 1:length(numerics)) {
+  sumVec = summary(numeric_only[,i])
+  summaryTable[i,1:length(sumVec)] = sumVec 
+}
+summaryTable[,7] = 100*summaryTable[,7]/n
+
+summaryTable = signif(summaryTable,4)
+
+colnames(summaryTable) = c("Min.","1st Qu.","Median","Mean","3rd Qu.","Max.","Perc NAs")
+rownames(summaryTable) = numerics
+summaryTable = round(summaryTable, 2)
+
+pls = kable(summaryTable, caption = "Summary Statistics of Continuous Variables")
+kable_styling(pls, latex_options = "hold_position")
+
+```
+
+```{r}
+important = c(DIASTOL, DIETQ12, DIETQ14)
+
+```
