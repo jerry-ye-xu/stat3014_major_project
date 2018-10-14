@@ -10,11 +10,15 @@ output:
 ```{r, include=TRUE}
 
 # library(tidyverse)
+library(tidyr)
 library(dplyr)
+library(broom) # for tidy()
 library(ggplot2)
 source("./functions/cv_knn.R")
 source("./functions/cv_da.R")
 source("./functions/cv_rpart.R")
+source("./functions/cv_glm.R")
+source("./functions/cv_glm_backward.R")
 ```
 
 
@@ -90,7 +94,7 @@ categoricalList[ 26 ] <- TRUE #  HDLCHREB
 categoricalList[ 27 ] <- TRUE #  LDLNTR 
 categoricalList[ 28 ] <- TRUE #  LDLRESB 
 
-categoricalList[ 29 ] <- TRUE #  B3T1
+categoricalList[ 29 ] <- FALSE #  B3T1
 
 categoricalList[ 30 ] <- TRUE #  CHOLNTR 
 categoricalList[ 31 ] <- TRUE #  HDLCHREB 
@@ -103,7 +107,7 @@ categoricalList[ 35 ] <- TRUE #  CVDMEDST
 
 for (i in 1:length(categoricalList)) {
   if (categoricalList[ i ]) {
-      nutm[,i] <- as.factor(nutm[  ,i])
+      nutm[,i] <- as.factor(nutm[ ,i])
   }
 }
 
@@ -163,7 +167,11 @@ ggplot(pmv_transpose, aes(x=column_idx, y=(percent_missing*100), fill="purple"))
 Looking at this, we may have to omit some variables depending on which response variables we are analying.
 
 
+
+
 ## Predicting Diabetes Mellitus
+
+#### Preprocessing Data Stage 
 
 We use to model the "DIABBC" variable. It contains 3 outcomes:
 
@@ -237,21 +245,30 @@ ggplot(diabetes_no_na, aes(x=SUGART1)) + stat_density(aes(fill=DIABBC)) +
 
 ```
 
+Setting variables:
+
+```{r}
+
+df_len = dim(diabetes)[2]
+df_len
+
+neighbours = 3
+V = 10
+
+```
 
 Now we can try to fit a KNN to test the code. 
 
 ```{r}
-neighbours=3
-V=10
 
 X = data.frame(scale(diabetes_no_na[, 2:15]))
 y = diabetes_no_na$DIABBC
 head(X)
 cv_knn(X, y, k=neighbours, V=10, seed=1)
 
-res.rpart <- rpart(m_y_nz ~ m_x_nz
-, data=df_cart_no_zeroes)
-rpart.plot(res.rpart,type=1,extra=1, main="CART for Diabetes, non_zeroes")
+# res.rpart <- rpart(m_y_nz ~ m_x_nz
+# , data=df_cart_no_zeroes)
+# rpart.plot(res.rpart,type=1,extra=1, main="CART for Diabetes, non_zeroes")
 ```
 
 ```{r}
@@ -260,7 +277,10 @@ y <- diabetes_no_na$DIABBC
 
 diabetes_no_na_cart <- data.frame(y, X)
 
-res_rpart <- rpart(y ~ X, data=diabetes_no_na_cart)
+minsplit = 5
+maxdepth = 10
+
+res_rpart <- rpart(y ~ X, data=diabetes_no_na_cart, method="anova", control = list(minsplit = minsplit, maxdepth = maxdepth))
 res_rpart
 rpart.plot(res_rpart,type=1,extra=1, main="CART for Diabetes")
 ```
@@ -284,6 +304,227 @@ mutate(diabetes_no_na, DIABBC = ifelse(DIABBC == "0", 0, 1))
 
 logistic_regression = glm(y~., family=binomial, data=X)
 summary(logistic_regression)
+
+```
+
+## Normal vs. Abnormal Cholesterol Levels
+
+#### Data Preprocessing Stage
+
+Let's firstly check how much data we have.
+
+```{r}
+
+sum(is.na(nutm["CHOLNTR"]))
+table(nutm["CHOLNTR"])
+
+```
+
+```{r}
+
+cholesterol_response = c("CHOLNTR")
+cholesterol_variables = c("BMISC", "AGEC", "EXLWTBC", 
+                       # "SF2SA1QN", "INCDEC",
+                       # "HSUGBC", 
+                       "FATT1", "SUGART1", 
+                       "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       # "ADTOTSE",
+                       # "SEX"
+                       # "SMKSTAT", 
+                       "SYSTOL", 
+                       # "FASTSTAD", 
+                       # "HDLCHREB", 
+                       "LDLNTR", 
+                       # "LDLRESB", 
+                       "B3T1"
+                       )
+
+cholesterol = nutm[c(cholesterol_response, cholesterol_variables)]
+
+table(cholesterol$CHOLNTR)
+
+# cholesterol <- mutate(cholesterol, CHOLNTR = ifelse(CHOLNTR == 1, "0", "1"))
+cholesterol$CHOLNTR <- as.factor(cholesterol$CHOLNTR)
+# cholesterol$HDLCHREB <- as.numeric(cholesterol$HDLCHREB)
+cholesterol$LDLNTR <- as.numeric(cholesterol$LDLNTR)
+# cholesterol$LDLRESB <- as.numeric(cholesterol$LDLRESB)
+head(cholesterol)
+
+```
+
+```{r}
+
+cholesterol_no_na <- cholesterol[complete.cases(cholesterol), ]
+dim(cholesterol_no_na)
+
+table(cholesterol_no_na$CHOLNTR)
+```
+
+Setting variables:
+
+```{r}
+
+df_len = dim(cholesterol)[2]
+df_len
+
+neighbours = 3
+V = 10
+
+```
+
+
+```{r}
+
+X = data.frame(scale(cholesterol_no_na[, 2:df_len]))
+y = cholesterol_no_na$CHOLNTR
+cv_knn(X, y, k=neighbours, V=10, seed=1)
+
+X <- as.matrix(cholesterol_no_na[, 2:df_len])
+y <- cholesterol_no_na$CHOLNTR
+cholesterol_no_na_cart <- data.frame(y, X)
+
+res_rpart <- rpart(y ~ X
+, data=cholesterol_no_na)
+rpart.plot(res_rpart,type=1,extra=1, main="CART for Diabetes, non_zeroes")
+res_rpart
+
+cv_rpart(X, y, V, seed=1)
+```
+
+#### GLMs
+
+```{r}
+
+X = data.frame(cholesterol_no_na[, 2:df_len])
+y = cholesterol_no_na$CHOLNTR
+
+mutate(cholesterol_no_na, CHOLNTR = ifelse(CHOLNTR == "0", 0, 1))
+
+logistic_regression = glm(y~., family=binomial, data=X)
+summary(logistic_regression)
+
+```
+
+Now let's try to conduct some cross-validation on GLMs. 
+
+```{r}
+
+```
+
+
+#### Random Forests
+
+```{r}
+# library(rsample)      # data splitting - not available for the most recent version of R
+library(randomForestSRC) # basic RF package
+library(ranger)
+```
+
+```{r}
+
+X = data.frame(cholesterol_no_na[, 2:df_len])
+y = cholesterol_no_na$CHOLNTR
+
+cholesterol_no_na_cart <- data.frame(y, X)
+
+train <- sample_frac(cholesterol_no_na_cart, 0.7)
+train_idx <-as.numeric(rownames(train))
+test <- cholesterol_no_na_cart[-train_idx,]
+head(train)
+head(test)
+
+```
+
+```{r}
+
+chol_train <- ranger(
+  formula = y ~ .,
+  data    = train,
+  importance = "impurity"
+  # xtest   = test$y,
+  # ytest   = test[, 2:df_len]
+)
+
+chol_train$variable.importance
+chol_train$prediction.error
+
+print("Predict using the test set")
+chol_test <- predict(chol_train, data = test)
+
+table(test$y, chol_test$predictions)
+
+chol_train$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  ggplot(aes(reorder(names, x), x)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Top 25 important variables")
+
+```
+
+__Tuning the Hyperparameters__
+
+```{r}
+hyper_grid_2 <- expand.grid(
+  mtry       = seq(1, 14, by = 2),
+  node_size  = seq(3, 9, by = 2),
+  sampe_size = c(.55, .632, .70, .80),
+  OOB_RMSE  = 0
+)
+
+hyper_grid_2
+
+# perform grid search
+for(i in 1:nrow(hyper_grid_2)) {
+  
+  # train model
+  model <- ranger(
+    formula         = y ~ ., 
+    data            = train, 
+    importance      = "impurity",
+    num.trees       = 500,
+    mtry            = hyper_grid_2$mtry[i],
+    min.node.size   = hyper_grid_2$node_size[i],
+    sample.fraction = hyper_grid_2$sampe_size[i],
+    seed            = 123
+  )
+  
+  # add OOB error to grid
+  hyper_grid_2$OOB_RMSE[i] <- sqrt(model$prediction.error)
+}
+
+hyper_grid_2 %>% 
+  dplyr::arrange(OOB_RMSE) %>%
+  head(10)
+```
+
+```{r}
+
+rf_oob_comp <- randomForest(
+  formula = y ~ .,
+  data    = train,
+  xtest   = test$y,
+  ytest   = test[, 2:df_len]
+)
+
+# extract OOB & validation errors
+oob <- sqrt(rf_oob_comp$mse)
+validation <- sqrt(rf_oob_comp$test$mse)
+
+# compare error rates
+tibble::tibble(
+  `Out of Bag Error` = oob,
+  `Test error` = validation,
+  ntrees = 1:rf_oob_comp$ntree
+) %>%
+  gather(Metric, RMSE, -ntrees) %>%
+  ggplot(aes(ntrees, RMSE, color = Metric)) +
+  geom_line() +
+  scale_y_continuous(labels = scales::dollar) +
+  xlab("Number of trees")
 
 ```
 

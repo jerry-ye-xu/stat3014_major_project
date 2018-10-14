@@ -24,6 +24,10 @@ getwd()
 ```
 
 __Files:__
-<br>[GoogleDoc for Ideas and Workflow](https://docs.google.com/document/d/1tk3tf3uSRE0-vkbDt2_8xvHBUhI0JsLxa3ZaOfnr7lo/edit) </br>
 
+<br>[GoogleDoc for Ideas and Workflow](https://docs.google.com/document/d/1tk3tf3uSRE0-vkbDt2_8xvHBUhI0JsLxa3ZaOfnr7lo/edit) </br>
 <br>[GitHub Repo](https://github.com/jerry-ye-xu/stat3014_nutm3004_major_project) </br>
+
+__Worklog:__
+
+- reprocessed the raw AHS file, identifying NaN values and filtering down to the variables which are necessary. This has been stored in the output folder.
