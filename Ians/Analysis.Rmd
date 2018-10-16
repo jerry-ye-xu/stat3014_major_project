@@ -240,7 +240,7 @@ sum(is.na(dat$CVDMEDST))
 ```{r}
 library(tidyverse)
 ##PREDICTORS OF INTEREST
-predictors = select(dat, BMISC, AGEC, PHDKGWBC, EXLWTBC, SF2SA1QN, INCDEC, HSUGBC, FATT1, SUGART1, PREVAT1, PROVAT1, FATPER1, LAPER1, ALAPER1, CHOPER1, SATPER1, TRANPER1, MONOPER1, POLYPER1, ADTOTSE, SEX, SMKSTAT, SYSTOL, FASTSTAD, HDLCHREB, LDLNTR, LDLRESB, B3T1)
+predictors = select(dat, BMISC, AGEC, PHDKGWBC, EXLWTBC, SF2SA1QN, INCDEC, HSUGBC, FATT1, SUGART1, PREVAT1, PROVAT1, FATPER1, LAPER1, ALAPER1, CHOPER1, SATPER1, SUGPER1, TRANPER1, MONOPER1, POLYPER1, ADTOTSE, SEX, SMKSTAT, SYSTOL, FASTSTAD, HDLCHREB, LDLNTR, LDLRESB, B3T1)
 
 ##RESPONSES OF INTEREST
 responses = select(dat, CHOLNTR, HDLCHREB, DIABBC, HCHOLBC, HYPBC, CVDMEDST)
@@ -302,6 +302,10 @@ rem3 = total[!is.na(total$CVDMEDST),]
 dim(rem3) 
 image(is.na(t(rem3)))
 
+for (i in 1:dim(rem3)[2]){
+ boxplot(na.omit(rem3[,i]))
+}
+
 perc_miss_new = 100*apply(is.na(rem3), 2, mean)
 missing_data_new = data.frame(Var = names(perc_miss_new), Percent_Missing = perc_miss_new)
 missing_data_new
@@ -325,6 +329,104 @@ dim(new)
 ```
 ie. only lose 92%. Maybe worth bringing up with group to see what variables are valid and not valid to be dropped. 
 
+```{r}
+rem3 = na.omit(rem3)
+rem3names = colnames(rem3)
+
+numerics=c()
+indexes=c()
+categoricals = c()
+indexes_cat=c()
+
+for (i in 1:length(rem3names)){
+ if(is.factor(rem3[,i]) == FALSE){
+   numerics = c(numerics, rem3names[i])
+   indexes = c(indexes, i) } 
+  else {
+    categoricals = c(categoricals, rem3names[i])
+    indexes_cat = c(indexes_cat, i) }
+}
+
+rem3_num = rem3[,indexes]
+rem3_cat = rem3[,indexes_cat]
+
+for (i in 1:dim(rem3_num)[2]){
+ boxplot(log(na.omit(rem3_num[,i])))
+}
+
+for (i in 1:dim(rem3_num)[2]){
+ plot(density(na.omit(rem3_num[,i])))
+}
+```
+
+Basic exploratory analysis of types of fat
+```{r}
+plotdf = data.frame(`Carbohydrate` = rem3$CHOPER1, `Total Sugars` = rem3$SUGPER1, `Total Fat` = rem3$FATPER1, `Linoleic Acid` = rem3$LAPER1, `Alpha Linolenic Acid` = rem3$ALAPER1, `Saturated Fat + Fatty Acids` = rem3$SATPER1, `Trans-Fatty Acids` = rem3$TRANPER1, `Monounsaturated Fat` = rem3$MONOPER1, `Polyunsaturated Fat` = rem3$POLYPER1)
+
+melted = melt(plotdf)
+colnames(melted) = c("Type", "Value")
+
+ggplot(melted, aes(x = Type, y = Value)) + geom_boxplot() + ggtitle("Energy Sources (Percentage of Energy)") + theme(plot.title = element_text(hjust = 0.5, size=12), axis.text.x = element_text(angle=90, hjust=1))
+```
+
+Boxplots of the fats only
+```{r}
+fatsonly = data.frame(`Linoleic Acid` = rem3$LAPER1, `Alpha Linolenic Acid` = rem3$ALAPER1, `Saturated Fat + Fatty Acids` = rem3$SATPER1, `Trans-Fatty Acids` = rem3$TRANPER1, `Monounsaturated Fat` = rem3$MONOPER1, `Polyunsaturated Fat` = rem3$POLYPER1)
+
+melted = melt(fatsonly)
+colnames(melted) = c("Type", "Value")
+
+ggplot(melted, aes(x = Type, y = Value)) + geom_boxplot() + ggtitle("Types of Fat (Percentage of Energy))") + theme(plot.title = element_text(hjust = 0.5, size=12), axis.text.x = element_text(angle=90, hjust=1))
+```
+
+```{r}
+library(corrplot)
+cormat = cor(fatsonly)
+corrplot(cormat, method="color",  addCoef.col = "black", type = "upper", tl.col="black", tl.srt=45)
 
 
+```
 
+```{r}
+agetrenddf = data.frame(Age = rem3$AGEC, Chol = as.numeric(rem3$CHOLNTR))
+
+for (j in 1:length(agetrenddf$Chol)){
+  if (agetrenddf$Chol[j] == 1){
+    agetrenddf$Chol[j] = "Normal Total Cholesterol"
+  }
+  if (agetrenddf$Chol[j] == 2){
+    agetrenddf$Chol[j] = "Abnormal Total Cholesterol"
+  }
+}
+
+cats = c()
+
+for (i in 1:length(rem3$AGEC)){
+  age = rem3$AGEC[i]
+  if (age > 17 & age < 28){
+    cats[i] = "18-27"
+  }
+  if (age > 27 & age < 38){
+    cats[i] = "28-37"
+  }
+  if(age > 37 & age < 48){
+    cats[i] = "38-47"
+  }
+  if(age > 47 & age < 58){
+    cats[i] = "48-57"
+  }
+  if(age > 57 & age < 68){
+    cats[i] = "58-67"
+    }
+  if(age > 67){
+    cats[i] = "68+"
+  }
+}
+
+newdf = cbind(agetrenddf, cats)
+colnames(newdf) = c("Age", "Cholesterol Status", "Age Bracket")
+
+ggplot(newdf,aes(x = `Age Bracket`, fill=`Cholesterol Status`)) + geom_histogram(stat = "count", position="dodge") + labs(y = "Frequency") + ggtitle("Status of Cholesterol by Age")
+
+
+```
