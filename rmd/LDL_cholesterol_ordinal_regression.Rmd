@@ -1,0 +1,214 @@
+---
+title: "Cholesterol_multinomial"
+author: "Jerry Xu"
+date: "15 October 2018"
+output: html_document
+---
+
+```{r}
+
+library(MASS)
+library(brant) # Use this to test for parallel regression assumption
+
+```
+
+
+## Ordinal Logistic Regression with LDL Cholesterol
+
+```{r}
+
+feature_variables = c("BMISC", "AGEC", "PHDKGWBC", "EXLWTBC", "SF2SA1QN", "INCDEC", "HSUGBC", "FATT1", "SUGART1", "PREVAT1", "PROVAT1", "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", "SUGPER1", "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", "ADTOTSE", "SEX", "SMKSTAT", "SYSTOL", "FASTSTAD", "HDLCHREB", "LDLNTR", "LDLRESB", "B3T1")
+
+# BMR, SLPTIME
+
+response_variables = c("CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST")
+
+all_variables = c(feature_variables, response_variables)
+
+nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
+nutm = nutm_orig[all_variables]
+
+```
+
+We'll need to reprocess some of the variables as factors. 
+
+```{r}
+
+categoricalList <- c()
+
+categoricalList[ 1 ] <- FALSE #  BMISC 
+categoricalList[ 2 ] <- FALSE #  AGEC 
+
+categoricalList[ 3 ] <- FALSE #  PHDKGWBC 
+
+categoricalList[ 4 ] <- FALSE #  EXLWTBC 
+
+categoricalList[ 5 ] <- TRUE #  SF2SA1QN 
+categoricalList[ 6 ] <- TRUE #  INCDEC 
+
+categoricalList[ 7 ] <- TRUE #  HSUGBC 
+
+categoricalList[ 8 ] <- FALSE #  FATT1 
+
+categoricalList[ 9 ] <- FALSE #  SUGART1 
+
+categoricalList[ 10 ] <- FALSE #  PREVAT1 
+categoricalList[ 11 ] <- FALSE #  PROVAT1 
+
+categoricalList[ 12 ] <- FALSE #  FATPER1 
+categoricalList[ 13 ] <- FALSE #  LAPER1 
+categoricalList[ 14 ] <- FALSE #  ALAPER1 
+categoricalList[ 15 ] <- FALSE #  CHOPER1 
+categoricalList[ 16 ] <- FALSE #  SUGPER1 
+
+categoricalList[ 17 ] <- FALSE #  SATPER1 
+categoricalList[ 18 ] <- FALSE #  TRANPER1 
+
+categoricalList[ 19 ] <- FALSE #  MONOPER1 
+categoricalList[ 20 ] <- FALSE #  POLYPER1 
+categoricalList[ 21 ] <- FALSE #  ADTOTSE 
+
+categoricalList[ 22 ] <- TRUE #  SEX 
+
+categoricalList[ 23 ] <- TRUE #  SMKSTAT 
+categoricalList[ 24 ] <- FALSE #  SYSTOL 
+
+categoricalList[ 25 ] <- TRUE #  FASTSTAD 
+
+categoricalList[ 26 ] <- TRUE #  HDLCHREB 
+categoricalList[ 27 ] <- TRUE #  LDLNTR 
+categoricalList[ 28 ] <- TRUE #  LDLRESB 
+
+categoricalList[ 29 ] <- FALSE #  B3T1
+
+categoricalList[ 30 ] <- TRUE #  CHOLNTR 
+categoricalList[ 31 ] <- TRUE #  HDLCHREB 
+categoricalList[ 32 ] <- TRUE #  DIABBC 
+categoricalList[ 33 ] <- TRUE #  HCHOLBC 
+categoricalList[ 34 ] <- TRUE #  HYPBC 
+categoricalList[ 35 ] <- TRUE #  CVDMEDST 
+
+# "CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST"
+
+for (i in 1:length(categoricalList)) {
+  if (categoricalList[ i ]) {
+      nutm[, i] <- as.factor(nutm[ ,i])
+  }
+}
+
+head(nutm)
+```
+
+```{r}
+
+cholesterol_response = c("LDLRESB")
+cholesterol_variables = c("BMISC", "AGEC", "EXLWTBC", 
+                       # "SF2SA1QN", "INCDEC",
+                       # "HSUGBC", 
+                       "FATT1", "SUGART1", 
+                       "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       # "ADTOTSE",
+                       # "SEX"
+                       # "SMKSTAT", 
+                       "SYSTOL", 
+                       # "FASTSTAD", 
+                       # "HDLCHREB", 
+                       # "LDLNTR", # Fasting cholesterol status... not sure if forward-looking bias or not. 
+                       # "LDLRESB", # Response variable
+                       "B3T1"
+                       )
+
+all_variables = c(cholesterol_variables, cholesterol_response)
+
+cholesterol = nutm_orig[all_variables]
+cholesterol$LDLRESB <- as.factor(cholesterol$LDLRESB)
+
+head(cholesterol)
+```
+
+
+```{r}
+
+# cholesterol$HDLCHREB <- as.numeric(cholesterol$HDLCHREB)
+# cholesterol$LDLNTR <- as.numeric(cholesterol$LDLNTR)
+# cholesterol$LDLRESB <- as.numeric(cholesterol$LDLRESB)
+head(cholesterol)
+
+table(nutm$LDLRESB) # HDL Cholesterol range
+
+sum((is.na(cholesterol$LDLRESB)))
+
+```
+
+```{r}
+
+cholesterol_no_na <- cholesterol[complete.cases(cholesterol), ]
+dim(cholesterol_no_na)
+
+table(cholesterol_no_na$LDLRESB)
+
+df_len = dim(cholesterol_no_na)[2]
+df_len
+
+df_row = dim(cholesterol_no_na)[1]
+df_row
+
+```
+
+```{r}
+
+chol_ordinal <- polr(LDLRESB ~ ., data=cholesterol_no_na, Hess=TRUE, model=FALSE)
+summary(chol_ordinal)
+
+```
+
+We transform the coefficients to log-odds
+
+```{r}
+
+coefs <- coef(chol_ordinal)
+
+log_odds <- (exp(coefs) - 1)*100
+log_odds
+
+```
+
+
+
+```{r}
+
+df_len = dim(cholesterol_no_na)[2]
+df_len
+
+df_row = dim(cholesterol_no_na)[1]
+df_row
+
+t_values <- tidy(chol_ordinal)$statistic[1:df_len]
+t_values
+
+p_values <- round((1 - pt(abs(t_values), df=df_row-df_len, lower.tail=TRUE))*2, 2)
+p_values
+
+data.frame(cbind(colnames(cholesterol_no_na), t_values, p_values))
+```
+
+```{r}
+
+brant(chol_ordinal)
+
+```
+
+
+```{r}
+
+plot(profile(chol_ordinal))
+
+```
+
+The Brant test does not hold. Hence we have reason to not use the ordinal logistic regression.
+
+So perhaps we can try GoLogit/ppo (generalised ordinal logit, partial proportional odds model) model. 
+
+## Partial Ordinal Logistic Regression
+

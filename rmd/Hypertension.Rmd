@@ -1,0 +1,352 @@
+---
+title: "Hypertension"
+author: "Jerry Xu"
+date: "16 October 2018"
+output: html_document
+---
+
+## Predicting Hypertension
+
+Warning: The glm functions take a while to run. They have been commented out to save time when running the whole file
+
+```{r, include=TRUE}
+
+# library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(broom) # for tidy()
+library(ggplot2)
+
+# library(rsample)      # data splitting - not available for the most recent version of R
+library(randomForestSRC) # basic RF package
+library(ranger)
+
+source("./functions/cv_knn.R")
+source("./functions/cv_da.R")
+source("./functions/cv_rpart.R")
+source("./functions/cv_glm.R")
+source("./functions/cv_glm_backward.R")
+
+```
+
+## Standardised Preprocessing
+ 
+```{r}
+
+feature_variables = c("BMISC", "AGEC", "PHDKGWBC", "EXLWTBC", "SF2SA1QN", "INCDEC", "HSUGBC", "FATT1", "SUGART1", 
+                       "PREVAT1", "PROVAT1", "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", "SUGPER1", "SATPER1", "TRANPER1", 
+                       "MONOPER1", "POLYPER1", "ADTOTSE", "SEX", "SMKSTAT", "SYSTOL", "FASTSTAD", "HDLCHREB", "LDLNTR", "LDLRESB", "B3T1")
+
+# BMR, SLPTIME
+
+response_variables = c("CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST")
+
+all_variables = c(feature_variables, response_variables)
+
+nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
+nutm = nutm_orig[all_variables]
+
+```
+
+```{r}
+
+table(nutm$HYPBC) # Hypertensive Disease status
+
+```
+
+We'll need to reprocess some of the variables as factors. 
+
+```{r}
+categoricalList <- c()
+
+categoricalList[ 1 ] <- FALSE #  BMISC 
+categoricalList[ 2 ] <- FALSE #  AGEC 
+
+categoricalList[ 3 ] <- FALSE #  PHDKGWBC 
+
+categoricalList[ 4 ] <- FALSE #  EXLWTBC 
+
+categoricalList[ 5 ] <- TRUE #  SF2SA1QN 
+categoricalList[ 6 ] <- TRUE #  INCDEC 
+
+categoricalList[ 7 ] <- TRUE #  HSUGBC 
+
+categoricalList[ 8 ] <- FALSE #  FATT1 
+
+categoricalList[ 9 ] <- FALSE #  SUGART1 
+
+categoricalList[ 10 ] <- FALSE #  PREVAT1 
+categoricalList[ 11 ] <- FALSE #  PROVAT1 
+
+categoricalList[ 12 ] <- FALSE #  FATPER1 
+categoricalList[ 13 ] <- FALSE #  LAPER1 
+categoricalList[ 14 ] <- FALSE #  ALAPER1 
+categoricalList[ 15 ] <- FALSE #  CHOPER1 
+categoricalList[ 16 ] <- FALSE #  SUGPER1 
+
+categoricalList[ 17 ] <- FALSE #  SATPER1 
+categoricalList[ 18 ] <- FALSE #  TRANPER1 
+
+categoricalList[ 19 ] <- FALSE #  MONOPER1 
+categoricalList[ 20 ] <- FALSE #  POLYPER1 
+categoricalList[ 21 ] <- FALSE #  ADTOTSE 
+
+categoricalList[ 22 ] <- TRUE #  SEX 
+
+categoricalList[ 23 ] <- TRUE #  SMKSTAT 
+categoricalList[ 24 ] <- FALSE #  SYSTOL 
+
+categoricalList[ 25 ] <- TRUE #  FASTSTAD 
+
+categoricalList[ 26 ] <- TRUE #  HDLCHREB 
+categoricalList[ 27 ] <- TRUE #  LDLNTR 
+categoricalList[ 28 ] <- TRUE #  LDLRESB 
+
+categoricalList[ 29 ] <- FALSE #  B3T1
+
+categoricalList[ 30 ] <- TRUE #  CHOLNTR 
+categoricalList[ 31 ] <- TRUE #  HDLCHREB 
+categoricalList[ 32 ] <- TRUE #  DIABBC 
+categoricalList[ 33 ] <- TRUE #  HCHOLBC 
+categoricalList[ 34 ] <- TRUE #  HYPBC 
+categoricalList[ 35 ] <- TRUE #  CVDMEDST 
+
+# "CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST"
+
+for (i in 1:length(categoricalList)) {
+  if (categoricalList[ i ]) {
+      nutm[,i] <- as.factor(nutm[ ,i])
+  }
+}
+
+head(nutm)
+```
+
+## Feature Selection
+
+```{r}
+
+hype_response = c("HYPBC")
+hype_variables = c("BMISC", "AGEC", "EXLWTBC", 
+                       # "SF2SA1QN", "INCDEC",
+                       # "HSUGBC", 
+                       "FATT1", "SUGART1", 
+                       "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       "ADTOTSE",
+                       # "SEX"
+                       "SMKSTAT", "SYSTOL"
+                       # "FASTSTAD", 
+                       # "HDLCHREB", "LDLNTR", "LDLRESB", 
+                       # "B3T1"
+                       )
+
+hype = nutm[c(hype_response, hype_variables)]
+# hype = hype[hype$HYPBC != 3, ] # Removing that pecular case (see below)
+table(hype$HYPBC)
+
+hype <- mutate(hype, HYPBC = ifelse(HYPBC == 5, "0", "1"))
+hype$HYPBC <- as.factor(hype$HYPBC)
+head(hype)
+
+```
+
+\begin{tabular}{|c|c|}
+\hline
+Outcome & Interpretation    \\
+\hline
+1       & Currently has HYP and long term  \\
+2       & Currently has HYP but not long term \\
+3       & Had HYP previously but not current \\
+5       & Does not have HYP  \\
+\hline
+\end{tabular}
+
+We chose to combine 1, 2 & 3 together because they are the most similar group. This also allows the division between the 2 classes to be less disproportionate. Multinomial analysis here could also be important, but the class imbalances are huge. 
+
+```{r}
+
+# Need to preprocess this variable. 
+
+hype$SMKSTAT <- as.numeric(hype$SMKSTAT)
+
+```
+
+```{r}
+
+hype_no_na <- hype[complete.cases(hype), ]
+dim(hype_no_na)
+
+table(hype_no_na$HYPBC)
+
+```
+
+```{r}
+
+6071/(6071+1539) # Null Accuracy
+
+```
+
+
+```{r}
+
+df_len = dim(hype_no_na)[2]
+df_len
+
+neighbours = 3
+V = 10
+
+```
+
+
+```{r}
+
+X = data.frame(scale(hype_no_na[, 2:df_len]))
+y = hype_no_na$HYPBC
+cv_knn(X, y, k=neighbours, V=10, seed=1)
+
+
+k_neighbours = seq(1,29,by=2)
+cv_errors = c()
+for (i in 1:length(k_neighbours)) {
+  cv_errors[i] = cv_knn(X, as.factor(y),k=k_neighbours[i],V,seed=1)
+}
+plot(k_neighbours, cv_errors, type="l", xlab="value of k", ylab="cross-validation error", cex.lab=1.5,
+    main="CV errors for K-nearest neighbours", cex.main=2, ylim=c(0.15,0.30))
+
+```
+
+```{r}
+
+X <- as.matrix(hype_no_na[, 2:df_len])
+y <- hype_no_na$HYPBC
+hype_no_na_cart <- data.frame(y, X)
+
+res_rpart <- rpart(y ~ X
+, data=hype_no_na)
+rpart.plot(res_rpart,type=1,extra=1, main="CART for Diabetes, non_zeroes")
+res_rpart
+
+cv_rpart(X, y, V, seed=1)
+
+```
+
+### LDA and QDA
+
+```{r}
+
+X = data.frame(scale(hype_no_na[, 2:15]))
+y = hype_no_na$HYPBC
+
+cv_da(X = X, y = y, V = 10, method = "lda", seed = 1)
+cv_da(X = X, y = y, V = 10, method = "qda", seed = 1)
+
+```
+
+```{r}
+
+X = data.frame(hype_no_na[, 2:df_len])
+y = hype_no_na$HYPBC
+
+mutate(hype_no_na, HYPBC = ifelse(HYPBC == "0", 0, 1))
+
+logistic_regression = glm(y~., family=binomial, data=X)
+summary(logistic_regression)
+
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+# I haven't run this yet. 
+
+cv_glm(X, y, V = 10)
+cv_glm_backward(X, y, V = 10, pen = log(df_samples))
+cv_glm_backward(X, y, V = 10, pen = 2)
+
+```
+
+#### Random Forests
+
+```{r}
+
+X <- as.matrix(hype_no_na[, 2:df_len])
+y <- hype_no_na$HYPBC
+
+hype_no_na_cart <- data.frame(y, X)
+
+train <- sample_frac(hype_no_na_cart, 0.7)
+train_idx <-as.numeric(rownames(train))
+test <- hype_no_na_cart[-train_idx,]
+head(train)
+head(test)
+
+```
+
+```{r}
+
+hype_train <- ranger(
+  formula = y ~ .,
+  data    = train,
+  importance = "impurity"
+  # xtest   = test$y,
+  # ytest   = test[, 2:df_len]
+)
+
+hype_train$variable.importance
+hype_train$prediction.error
+
+print("Predict using the test set")
+hype_test <- predict(hype_train, data = test)
+
+table(test$y, hype_test$predictions)
+
+hype_train$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  ggplot(aes(reorder(names, x), x)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Top 25 important variables")
+
+```
+
+```{r, eval=FALSE, include=FALSE}
+
+hyper_grid_2 <- expand.grid(
+  num.trees = c(300, 400, 500),
+  mtry       = seq(5, 14, by = 2),
+  node_size  = seq(3, 8, by = 2),
+  sampe_size = c(.55, .632, .70),
+  OOB_RMSE  = 0
+)
+
+hyper_grid_2
+
+# perform grid search
+for(i in 1:nrow(hyper_grid_2)) {
+  
+  # train model
+  model <- ranger(
+    formula         = y ~ ., 
+    data            = train, 
+    importance      = "impurity",
+    num.trees       = 500,
+    mtry            = hyper_grid_2$mtry[i],
+    min.node.size   = hyper_grid_2$node_size[i],
+    sample.fraction = hyper_grid_2$sampe_size[i],
+    seed            = 123
+  )
+  
+  # add OOB error to grid
+  hyper_grid_2$OOB_RMSE[i] <- sqrt(model$prediction.error)
+}
+
+hyper_grid_2 %>% 
+  dplyr::arrange(OOB_RMSE) %>%
+  head(10)
+
+```
+
+
+

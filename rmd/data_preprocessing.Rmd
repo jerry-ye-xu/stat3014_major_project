@@ -7,6 +7,8 @@ output:
   html_document: default
 ---
 
+Warning: The glm functions take a while to run. They have been commented out to save time when running the whole file
+
 ```{r, include=TRUE}
 
 # library(tidyverse)
@@ -14,11 +16,7 @@ library(tidyr)
 library(dplyr)
 library(broom) # for tidy()
 library(ggplot2)
-source("./functions/cv_knn.R")
-source("./functions/cv_da.R")
-source("./functions/cv_rpart.R")
-source("./functions/cv_glm.R")
-source("./functions/cv_glm_backward.R")
+
 ```
 
 
@@ -44,6 +42,19 @@ all_variables = c(feature_variables, response_variables)
 
 nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
 nutm = nutm_orig[all_variables]
+
+```
+
+```{r}
+
+table(nutm$CHOLNTR) # Total Cholesterol Status
+table(nutm$HDLCHREB) # HDL Cholesterol Range
+table(nutm$LDLRESB) # LDL Cholesterol Range
+table(nutm$DIABBC) # Diabetes Mellitus status
+table(nutm$HCHOLBC) # High Cholesterol Status 
+table(nutm$HYPBC) # Hypertensive Disease status
+table(nutm$CVDMEDST) # Dyslipidemia status (1-3 are similar)
+
 ```
 
 We'll need to reprocess some of the variables as factors. 
@@ -168,339 +179,6 @@ Looking at this, we may have to omit some variables depending on which response 
 
 
 
-
-## Predicting Diabetes Mellitus
-
-#### Preprocessing Data Stage 
-
-We use to model the "DIABBC" variable. It contains 3 outcomes:
-
-```{r}
-
-table(nutm["DIABBC"])
-
-```
-
-\begin{tabular}{|c|c|}
-\hline
-Outcome & Interpretation    \\
-\hline
-1       & Currently has DB  \\
-3       & Had DB previously \\
-5       & Does not have DB  \\
-\hline
-\end{tabular}
-
-Judging by the distribution of the different responses, we may have to drop 3 entirely as the definition of such an outcome is unclear. We do not know how long ago they stopped, although a retrospective study of their health improvements could be an interesting further piece of work.
-
-Given the disparity between the binary outcomes, a Poisson model here makes sense. 
-
-Now we need to select our feature variables. 
-
-```{r}
-diabetes_response = c("DIABBC")
-diabetes_variables = c("BMISC", "AGEC", "EXLWTBC", 
-                       # "SF2SA1QN", "INCDEC",
-                       # "HSUGBC", 
-                       "FATT1", "SUGART1", 
-                       "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", 
-                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
-                       "ADTOTSE"
-                       # "SEX"
-                       # "SMKSTAT", "SYSTOL", "FASTSTAD", 
-                       # "HDLCHREB", "LDLNTR", "LDLRESB", 
-                       #"B3T1"
-                       )
-
-diabetes = nutm[c(diabetes_response, diabetes_variables)]
-diabetes = diabetes[diabetes$DIABBC != 3, ]
-
-table(diabetes$DIABBC)
-
-diabetes <- mutate(diabetes, DIABBC = ifelse(DIABBC == 5, "0", "1"))
-diabetes$DIABBC <- as.factor(diabetes$DIABBC)
-head(diabetes)
-```
-
-```{r}
-sum(is.na(nutm[diabetes_response]))
-
-diabetes_no_na <- diabetes[complete.cases(diabetes), ]
-
-dim(diabetes_no_na)
-table(diabetes_no_na$DIABBC)
-```
-
-It seems like dropping all rows with any NA values does not change the binary outcomes of the response by alot. This is good. 
-
-```{r}
-
-ggplot(diabetes_no_na, aes(x=BMISC)) + stat_density(aes(fill=DIABBC)) +
-  labs(title ="Diabetes", x = "BMI", y = "density") + 
-  scale_fill_discrete(labels=c("Neg", "Pos"))
-
-ggplot(diabetes_no_na, aes(x=SUGART1)) + stat_density(aes(fill=DIABBC)) +
-  labs(title ="Diabetes", x = "Sugar", y = "density") + 
-  scale_fill_discrete(labels=c("Neg", "Pos"))
-
-```
-
-Setting variables:
-
-```{r}
-
-df_len = dim(diabetes)[2]
-df_len
-
-neighbours = 3
-V = 10
-
-```
-
-Now we can try to fit a KNN to test the code. 
-
-```{r}
-
-X = data.frame(scale(diabetes_no_na[, 2:15]))
-y = diabetes_no_na$DIABBC
-head(X)
-cv_knn(X, y, k=neighbours, V=10, seed=1)
-
-# res.rpart <- rpart(m_y_nz ~ m_x_nz
-# , data=df_cart_no_zeroes)
-# rpart.plot(res.rpart,type=1,extra=1, main="CART for Diabetes, non_zeroes")
-```
-
-```{r}
-X <- as.matrix(diabetes_no_na[, 2:15])
-y <- diabetes_no_na$DIABBC
-
-diabetes_no_na_cart <- data.frame(y, X)
-
-minsplit = 5
-maxdepth = 10
-
-res_rpart <- rpart(y ~ X, data=diabetes_no_na_cart, method="anova", control = list(minsplit = minsplit, maxdepth = maxdepth))
-res_rpart
-rpart.plot(res_rpart,type=1,extra=1, main="CART for Diabetes")
-```
-
-```{r}
-
-X = data.frame(scale(diabetes_no_na[, 2:15]))
-y = diabetes_no_na$DIABBC
-
-cv_da(X = X, y = y, V = 10, method = "lda", seed = 1)
-cv_da(X = X, y = y, V = 10, method = "qda", seed = 1)
-
-```
-
-```{r}
-
-X = data.frame(scale(diabetes_no_na[, 2:15]))
-y = diabetes_no_na$DIABBC
-
-mutate(diabetes_no_na, DIABBC = ifelse(DIABBC == "0", 0, 1))
-
-logistic_regression = glm(y~., family=binomial, data=X)
-summary(logistic_regression)
-
-```
-
-## Normal vs. Abnormal Cholesterol Levels
-
-#### Data Preprocessing Stage
-
-Let's firstly check how much data we have.
-
-```{r}
-
-sum(is.na(nutm["CHOLNTR"]))
-table(nutm["CHOLNTR"])
-
-```
-
-```{r}
-
-cholesterol_response = c("CHOLNTR")
-cholesterol_variables = c("BMISC", "AGEC", "EXLWTBC", 
-                       # "SF2SA1QN", "INCDEC",
-                       # "HSUGBC", 
-                       "FATT1", "SUGART1", 
-                       "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", 
-                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
-                       # "ADTOTSE",
-                       # "SEX"
-                       # "SMKSTAT", 
-                       "SYSTOL", 
-                       # "FASTSTAD", 
-                       # "HDLCHREB", 
-                       "LDLNTR", 
-                       # "LDLRESB", 
-                       "B3T1"
-                       )
-
-cholesterol = nutm[c(cholesterol_response, cholesterol_variables)]
-
-table(cholesterol$CHOLNTR)
-
-# cholesterol <- mutate(cholesterol, CHOLNTR = ifelse(CHOLNTR == 1, "0", "1"))
-cholesterol$CHOLNTR <- as.factor(cholesterol$CHOLNTR)
-# cholesterol$HDLCHREB <- as.numeric(cholesterol$HDLCHREB)
-cholesterol$LDLNTR <- as.numeric(cholesterol$LDLNTR)
-# cholesterol$LDLRESB <- as.numeric(cholesterol$LDLRESB)
-head(cholesterol)
-
-```
-
-```{r}
-
-cholesterol_no_na <- cholesterol[complete.cases(cholesterol), ]
-dim(cholesterol_no_na)
-
-table(cholesterol_no_na$CHOLNTR)
-```
-
-Setting variables:
-
-```{r}
-
-df_len = dim(cholesterol)[2]
-df_len
-
-neighbours = 3
-V = 10
-
-```
-
-
-```{r}
-
-X = data.frame(scale(cholesterol_no_na[, 2:df_len]))
-y = cholesterol_no_na$CHOLNTR
-cv_knn(X, y, k=neighbours, V=10, seed=1)
-
-X <- as.matrix(cholesterol_no_na[, 2:df_len])
-y <- cholesterol_no_na$CHOLNTR
-cholesterol_no_na_cart <- data.frame(y, X)
-
-res_rpart <- rpart(y ~ X
-, data=cholesterol_no_na)
-rpart.plot(res_rpart,type=1,extra=1, main="CART for Diabetes, non_zeroes")
-res_rpart
-
-cv_rpart(X, y, V, seed=1)
-```
-
-#### GLMs
-
-```{r}
-
-X = data.frame(cholesterol_no_na[, 2:df_len])
-y = cholesterol_no_na$CHOLNTR
-
-mutate(cholesterol_no_na, CHOLNTR = ifelse(CHOLNTR == "0", 0, 1))
-
-logistic_regression = glm(y~., family=binomial, data=X)
-summary(logistic_regression)
-
-```
-
-Now let's try to conduct some cross-validation on GLMs. 
-
-```{r}
-
-```
-
-
-#### Random Forests
-
-```{r}
-# library(rsample)      # data splitting - not available for the most recent version of R
-library(randomForestSRC) # basic RF package
-library(ranger)
-```
-
-```{r}
-
-X = data.frame(cholesterol_no_na[, 2:df_len])
-y = cholesterol_no_na$CHOLNTR
-
-cholesterol_no_na_cart <- data.frame(y, X)
-
-train <- sample_frac(cholesterol_no_na_cart, 0.7)
-train_idx <-as.numeric(rownames(train))
-test <- cholesterol_no_na_cart[-train_idx,]
-head(train)
-head(test)
-
-```
-
-```{r}
-
-chol_train <- ranger(
-  formula = y ~ .,
-  data    = train,
-  importance = "impurity"
-  # xtest   = test$y,
-  # ytest   = test[, 2:df_len]
-)
-
-chol_train$variable.importance
-chol_train$prediction.error
-
-print("Predict using the test set")
-chol_test <- predict(chol_train, data = test)
-
-table(test$y, chol_test$predictions)
-
-chol_train$variable.importance %>% 
-  tidy() %>%
-  dplyr::arrange(desc(x)) %>%
-  dplyr::top_n(25) %>%
-  ggplot(aes(reorder(names, x), x)) +
-  geom_col() +
-  coord_flip() +
-  ggtitle("Top 25 important variables")
-
-```
-
-__Tuning the Hyperparameters__
-
-```{r}
-hyper_grid_2 <- expand.grid(
-  mtry       = seq(1, 14, by = 2),
-  node_size  = seq(3, 9, by = 2),
-  sampe_size = c(.55, .632, .70, .80),
-  OOB_RMSE  = 0
-)
-
-hyper_grid_2
-
-# perform grid search
-for(i in 1:nrow(hyper_grid_2)) {
-  
-  # train model
-  model <- ranger(
-    formula         = y ~ ., 
-    data            = train, 
-    importance      = "impurity",
-    num.trees       = 500,
-    mtry            = hyper_grid_2$mtry[i],
-    min.node.size   = hyper_grid_2$node_size[i],
-    sample.fraction = hyper_grid_2$sampe_size[i],
-    seed            = 123
-  )
-  
-  # add OOB error to grid
-  hyper_grid_2$OOB_RMSE[i] <- sqrt(model$prediction.error)
-}
-
-hyper_grid_2 %>% 
-  dplyr::arrange(OOB_RMSE) %>%
-  head(10)
-```
-
 ```{r}
 
 rf_oob_comp <- randomForest(
@@ -527,4 +205,3 @@ tibble::tibble(
   xlab("Number of trees")
 
 ```
-
