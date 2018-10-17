@@ -1,12 +1,12 @@
 ---
-title: "Project"
+title: "EDA"
 author: "Ian Astalosh"
 date: "04/10/2018"
 output: html_document
 ---
 
 ```{r Read data, echo=FALSE}
-dat_orig <- read.csv("nutmstatData2018.csv",header=TRUE)
+dat_orig <- read.csv("../data/nutmstatData2018.csv",header=TRUE)
 
 dat <-  dat_orig
 colNames <- colnames(dat_orig)
