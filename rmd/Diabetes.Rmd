@@ -11,6 +11,8 @@ The analysis of diabetes presented a major challenge in handling a huge class im
 
 Given the overwhelming majority of one class, it made sense to consider methods to deal with this. In particular, I attempted the basic and synthetic minority over-sampling technique (SMOTE) upsampling methods, as well as penalised-SVM to adjust for Type I and II errors. 
 
+In the basic oversampling methods, 
+
 
 ## Predicting Diabetes Mellitus
 
@@ -46,15 +48,6 @@ source("./functions/cv_glm.R")
 source("./functions/cv_glm_backward.R")
 
 ```
-
-Before doing anything, we'll set the seed to ensure reproducibility.
-
-```{r}
-
-set.seed(15)
-
-```
-
 
 ## Standardised Preprocessing
  
@@ -171,6 +164,7 @@ Given the disparity between the binary outcomes, a logistic regression model her
 Now we need to select our feature variables. 
 
 ```{r}
+
 diabetes_response = c("DIABBC")
 diabetes_variables = c("BMISC", "AGEC", 
                        # "EXLWTBC", 
@@ -196,6 +190,7 @@ table(diabetes$DIABBC)
 diabetes <- mutate(diabetes, DIABBC = ifelse(DIABBC == 5, "0", "1"))
 diabetes$DIABBC <- as.factor(diabetes$DIABBC)
 head(diabetes)
+
 ```
 
 ```{r}
@@ -266,9 +261,9 @@ We quickly calculate the ROC curve here for knn here, after splitting the sample
 
 ```{r}
 
-train <- sample_frac(diabetes_no_na, 0.7)
-train_idx <-as.numeric(rownames(train))
-test <- diabetes_no_na[-train_idx, ]
+sample = sample.split(diabetes_no_na$DIABBC, SplitRatio = .7)
+train = subset(diabetes_no_na, sample == TRUE)
+test  = subset(diabetes_no_na, sample == FALSE)
 head(train)
 head(test)
 
@@ -327,9 +322,9 @@ CART simply classified every data point as negative. This is obviously not we ar
 
 ```{r}
 
-train <- sample_frac(diabetes_no_na_cart, 0.7)
-train_idx <-as.numeric(rownames(train))
-test <- diabetes_no_na_cart[-train_idx,]
+sample = sample.split(diabetes_no_na_cart$y, SplitRatio = .7)
+train = subset(diabetes_no_na_cart, sample == TRUE)
+test  = subset(diabetes_no_na_cart, sample == FALSE)
 head(train)
 head(test)
 
@@ -343,6 +338,7 @@ diabetes_train$variable.importance
 diabetes_train$prediction.error
 
 print("Predict using the test set")
+colnames(test)[1] <- "y"
 diabetes_test <- predict(diabetes_train, data = test)
 
 CrossTable(test$y, diabetes_test$predictions)
@@ -364,6 +360,9 @@ Based on the confusion matrix, the accuracy is
 
 table_values <- table(test$y, diabetes_test$predictions)
 table_values
+
+F1_Score(test$y, diabetes_test$predictions)
+
 (table_values[1] + table_values[4])/(sum(table_values))*100
 
 ```
@@ -372,7 +371,7 @@ Accuracy is greater than the null accuracy!
 
 However, the issue with this is that there are too many false negatives. Approximately one third of the minority class is classified incorrectly. We can surely improve on this further. 
 
-```{r, eval=TRUE, include=TRUE}
+```{r, eval=FALSE, include=FALSE}
 
 hyper_grid_2 <- expand.grid(
   mtry       = seq(1, 7, by = 2),
@@ -412,7 +411,7 @@ hyper_grid_2 %>%
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 tuning_results <- hyper_grid_2[order(hyper_grid_2$CLASS_ACCURACY, decreasing=TRUE), ]
 head(tuning_results)
@@ -420,18 +419,18 @@ optimal_parameters_idx <-rownames(tuning_results)[1]
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 table(train$y)
 hyper_grid_2[optimal_parameters_idx, ]
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
-train <- sample_frac(diabetes_no_na_cart, 0.7)
-train_idx <-as.numeric(rownames(train))
-test <- diabetes_no_na_cart[-train_idx,]
+sample = sample.split(diabetes_no_na_cart$y, SplitRatio = .7)
+train = subset(diabetes_no_na_cart, sample == TRUE)
+test  = subset(diabetes_no_na_cart, sample == FALSE)
 head(train)
 head(test)
 
@@ -439,7 +438,7 @@ diabetes_train <- ranger(
   formula         = y~. ,
   data            = train,
   importance      = "impurity",
-  num.trees       = hyper_grid_2[optimal_parameters_idx, "num.trees"],
+  num.trees       = 500,
   mtry            = hyper_grid_2[optimal_parameters_idx, "mtry"],
   min.node.size   = hyper_grid_2[optimal_parameters_idx, "node_size"],
   sample.fraction = hyper_grid_2[optimal_parameters_idx, "sample_size"]
@@ -455,12 +454,14 @@ CrossTable(test$y, diabetes_test$predictions)
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 table_test <- table(test$y, diabetes_test$predictions)
 table_test
 
-(table_test[1] + table_test[4])/(sum(table_test))
+F1_Score(test$y, diabetes_test$predictions)
+
+(table_test[1] + table_test[4])/(sum(table_test))*100
 
 ```
 
@@ -494,13 +495,6 @@ The ANOVA analysis is consistent with the CART plot for "variable importance" ea
 
 BMI and age are of course the huge influencers here, but many of the fats appear to not have a substantial effect on the model. 
 
-```{r}
-
-cv_glm(X, y, V = 10)
-
-```
-
-
 ```{r, eval=FALSE, include=FALSE}
 
 cv_glm_backward(X, y, V = 10, pen = log(df_samples))
@@ -529,11 +523,6 @@ train_diabetes = subset(diabetes_no_na, sample == TRUE)
 test_diabetes  = subset(diabetes_no_na, sample == FALSE)
 head(test_diabetes)
 
-#train_diabetes <- sample_frac(diabetes_no_na, 0.7, replace=FALSE)
-#train_idx <-as.numeric(rownames(train))
-#test_diabetes <- train_diabetes[-train_idx,]
-head(test_diabetes)
-
 minority_class <- train_diabetes[train_diabetes$DIABBC == 1, ]
 #majority_class <- train_diabetes[diabetes_no_na$DIABBC == 0, ]
 minor_idx <- rownames(minority_class)
@@ -552,6 +541,9 @@ minor_upsample[1:10]
 
 dim(test_diabetes)
 dim(train_diabetes)
+
+table(test_diabetes$DIABBC)
+table(train_diabetes$DIABBC)
 
 intersect(as.numeric(rownames(test_diabetes)), as.numeric(rownames(train_diabetes)) )
 
@@ -573,9 +565,10 @@ head(diabetes_no_na)
 
 ```{r}
 
+head(diabetes_upsample)
+
 dim(diabetes_upsample)
 table(diabetes_upsample$DIABBC)
-head(diabetes_upsample)
 
 ```
 
@@ -587,7 +580,6 @@ total_rows <- dim(diabetes_upsample)[1]
 total_rows
 
 rownames(diabetes_upsample) <- c(seq(1:total_rows))
-tail(diabetes_upsample)
 
 table_upsample <- table(diabetes_upsample$DIABBC)
 table_orig_test <- table(test_diabetes$DIABBC)
@@ -682,6 +674,7 @@ test  = subset(diabetes_upsample_cart, sample_sub == FALSE)
 head(train)
 head(test)
 
+dim(diabetes_upsample_cart)
 dim(train)
 dim(test)
 
@@ -739,12 +732,14 @@ diabetes_train$variable.importance %>%
 
 ```
 
-Based on the confusion matrix, the accuracy is higher than the null accuracy of the test set (~95%) that we withheld earlier.
+Despite not finding an improvement in overall accuracy, we were able to trade false positives for a large decrease in false negatives. It is safe to say that the model used will really depend on the context, as Type I and II errors are interelated. 
 
 ```{r}
 
 table_orig_test <- table(test_diabetes$y, diabetes_true_test$predictions)
 table_orig_test 
+
+F1_Score(test_diabetes$y, diabetes_true_test$predictions)
 
 # Random Forest
 (table_orig_test[1] + table_orig_test[4])/(sum(table_orig_test))*100
@@ -817,10 +812,6 @@ optimal_parameters_idx <-rownames(tuning_results)[1]
 
 ```
 
-TODO: Decide which training set to use?
-
-Always: Use test_diabetes as that was the original split from diabetes_no_na
-
 ```{r}
 
 intersect(as.numeric(rownames(test)), as.numeric(rownames(train)) )
@@ -846,6 +837,7 @@ diabetes_train$variable.importance
 diabetes_train$prediction.error
 
 print("Predict using the test set")
+colnames(test)[1] <- "y"
 diabetes_test <- predict(diabetes_train, data = test)
 CrossTable(test$y, diabetes_test$predictions)
 
@@ -860,9 +852,18 @@ CrossTable(test_diabetes$y, diabetes_true_test$predictions)
 
 ```{r}
 
+test_diabetes
+
+```
+
+
+```{r}
 
 table_test      <- table(test$y, diabetes_test$predictions)
 table_test_orig <- table(test_diabetes$y, diabetes_true_test$predictions)
+
+F1_Score(test$y, diabetes_test$predictions)
+F1_Score(test_diabetes$y, diabetes_true_test$predictions)
 
 (table_test[1] + table_test[4])/sum(table_test)*100
 (table_test_orig[1] + table_test_orig[4])/sum(table_test_orig)*100
@@ -870,17 +871,14 @@ table_test_orig <- table(test_diabetes$y, diabetes_true_test$predictions)
 ```
 
 
-### GLMs 
+### 2) GLMs 
 
-```{r}
+```{r, include=FALSE}
 
 X = data.frame(scale(diabetes_upsample[, 2:df_len]))
 y = diabetes_upsample$DIABBC
 
 mutate(diabetes_upsample, DIABBC = ifelse(DIABBC == "0", 0, 1))
-
-logistic_regression = glm(y~., family=binomial(link='logit'), data=X)
-summary(logistic_regression)
 
 ```
 
@@ -888,13 +886,20 @@ The coefficients of the variables are consistent with the random forest.
 
 ```{r}
 
+
+logistic_regression = glm(y~., family=binomial(link='logit'), data=X)
+summary(logistic_regression)
+
+
 anova(logistic_regression)
 pR2(logistic_regression)
 
 ```
 
 ```{r}
+
 cv_glm(X, y, V = 10)
+
 ```
 
 
@@ -908,7 +913,7 @@ head(diabetes_upsample)
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 rows_total <- dim(diabetes_upsample)[1]
 rows_total
@@ -945,6 +950,22 @@ print(paste("Size of test:", dim(test)[1]))
 print(paste('Accuracy: ',1-misClasificError))
 print(paste("F1 score: ", F1_Score(test$DIABBC, diabetes_test_pred, positive=0)))
 
+
+print("THE ORIGINAL TEST SET")
+colnames(test_diabetes)[1] <- "DIABBC"
+diabetes_orig_test_pred <- predict(logistic_regression, newdata=test_diabetes, type='response')
+diabetes_orig_test_pred <- ifelse(diabetes_orig_test_pred > prob_threshold, 1, 0)
+
+CrossTable(test_diabetes$DIABBC, diabetes_orig_test_pred)
+
+misClasificError <- mean(diabetes_test_pred != test$DIABBC)
+
+print(paste("Size of train:", dim(train)[1]))
+print(paste("Size of test:", dim(test_diabetes)[1]))
+
+print(paste('Accuracy: ',1-misClasificError))
+print(paste("F1 score: ", F1_Score(test_diabetes$DIABBC, diabetes_orig_test_pred, positive=0)))
+
 ```
 
 ```{r}
@@ -966,9 +987,7 @@ cv_glm_backward(X, y, V = 10, pen = 2)
 
 ```
 
-The results have improved dramatically, to the point where the random forest model has a 99% accuracy.
-
-### 2) Penalised Support Vector Machines
+### 3) Penalised Support Vector Machines
 
 ```{r}
 
@@ -998,6 +1017,7 @@ summary(svm_model)
 
 test_pred <- predict(svm_model, test_diabetes[, -1])
 test_pred[1:10]
+
 ```
 
 ```{r}
@@ -1015,12 +1035,15 @@ F1_Score(test_diabetes$DIABBC, test_pred)
 
 #### Hyperparameter Tuning
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 
 svm_model_tuned <- tune.svm(DIABBC~., data = train_diabetes, kernel="polynomial", 
-                 gamma=c(0.1,0.5,1,2,4), 
-                 cost = c(0.1,1,10,100,1000), 
-                 class.weights= c("0" = 1, "1" = 15))
+                 gamma=c(0.1,0.5,1,2), 
+                 cost = c(0.1,1,10), 
+                 class.weights= c("0" = 1, "1" = 15),
+                 tolerance = 0.01
+                 )
+                
 
 summary(svm_model_tuned)
 
@@ -1028,14 +1051,15 @@ summary(svm_model_tuned)
 
 ```{r}
 
-svm_model_tuned$best.parameters
-svm_model_tuned$nparcomb
+#svm_model_tuned$best.parameters
+#svm_model_tuned$nparcomb
 
 svm_model <- svm(DIABBC ~ ., data=train_diabetes, kernel="polynomial",
                  coef0=1,
                  gamma=2,
                  cost=0.1,
-                 class.weights=c("0"=1, "1"=10)
+                 class.weights=c("0"=1, "1"=10),
+                 tolerance = 0.01
                  )
 
 test_pred <- predict(svm_model, test_diabetes[, -1])
@@ -1048,7 +1072,8 @@ CrossTable(test_diabetes$DIABBC, test_pred)
 ```{r}
 
 table_values <- table(test_diabetes$DIABBC, test_pred)
-  
+
+F1_Score(test_diabetes$DIABBC, test_pred)
 (table_values[1] + table_values[4])/sum(table_values)*100
 
 ```
@@ -1059,7 +1084,7 @@ All this analysis suggests that there are different methods of finetuning the FP
 
 We wrap up this analysis with a revisit to upsampling, but this time we will investigate the __synthetic minority oversampling technique__ (SMOTE)
 
-#### 3) SMOTE Upsampling
+#### 4) SMOTE Upsampling
 
 We generate synthetic data by bootstrapping the minority-class samples that we have observed.
 
@@ -1075,7 +1100,7 @@ test_diabetes  = subset(diabetes_no_na, sample_sub == FALSE)
 head(train_diabetes)
 head(test_diabetes)
 
-print("Just checking that sample_frac functioned correctly")
+print("Just checking that sample.split functioned correctly")
 table(train_diabetes$DIABBC)
 table(test_diabetes$DIABBC)
 table(diabetes_no_na$DIABBC)
@@ -1176,20 +1201,30 @@ cv_rpart(X,y,V)
 
 ```
 
-
-
 ```{r}
 
-sample_sub = sample.split(diabetes_upsample_cart$y, SplitRatio = .7)
-train = subset(diabetes_upsample_cart, sample_sub == TRUE)
-test = subset(diabetes_upsample_cart, sample_sub == FALSE)
-head(train_diabetes)
-head(test_diabetes)
+#sample_sub = sample.split(diabetes_upsample_cart$y, SplitRatio = .7)
+#train = subset(diabetes_upsample_cart, sample_sub == TRUE)
+#test = subset(diabetes_upsample_cart, sample_sub == FALSE)
+#head(train_diabetes)
+#head(test_diabetes)
 
+# USE ORIGINAL TRAIN-TEST SPLIT
+#colnames(train_diabetes)[1] <- "y"
+
+# USE ONLY ON THE ORIGINAL SPLIT OF THE DATA
+#sample_sub = sample.split(train_diabetes$DIABBC, SplitRatio = .7)
+#train = subset(train_diabetes, sample_sub == TRUE)
+#test = subset(train_diabetes, sample_sub == FALSE)
+
+#colnames(train)[1] <- "y"
+#colnames(test)[1] <- "y"
+#head(train)
+#head(test)
 
 diabetes_train <- ranger(
   formula = y ~ .,
-  data    = train,
+  data    = diabetes_upsample_cart,
   importance = "impurity"
   # xtest   = test$y,
   # ytest   = test[, 2:df_len]
@@ -1198,14 +1233,15 @@ diabetes_train <- ranger(
 diabetes_train$variable.importance
 diabetes_train$prediction.error
 
-print("Predict using the test set OF THE TRAIN SET")
-diabetes_test <- predict(diabetes_train, data = test)
-dim(diabetes_test$predictions)
-CrossTable(test$y, diabetes_test$predictions)
+#print("Predict using the test set OF THE TRAIN SET")
+#diabetes_test <- predict(diabetes_train, data = test)
+#dim(diabetes_test$predictions)
+#CrossTable(test$y, diabetes_test$predictions)
 
 print("Predict using the ORIGINAL TEST SET")
+colnames(test_diabetes)[1] <- "y" 
 diabetes_true_test <- predict(diabetes_train, data = test_diabetes)
-CrossTable(test_diabetes$DIABBC, diabetes_true_test$predictions)
+CrossTable(test_diabetes$y, diabetes_true_test$predictions)
 
 
 diabetes_train$variable.importance %>% 
@@ -1221,13 +1257,16 @@ diabetes_train$variable.importance %>%
 
 ```{r}
 
-table_test <- table(test$y, diabetes_test$predictions)
-table_test_orig <- table(test_diabetes$DIABBC, diabetes_true_test$predictions)
+#table_test <- table(test$y, diabetes_test$predictions)
+table_test_orig <- table(test_diabetes$y, diabetes_true_test$predictions)
 
-(table_test[1] + table_test[4])/(sum(table_test))*100
+#F1_Score(test$y, diabetes_test$predictions)
+F1_Score(test_diabetes$y, diabetes_true_test$predictions)
+
+#(table_test[1] + table_test[4])/(sum(table_test))*100
 (table_test_orig[1] + table_test_orig[4])/(sum(table_test_orig))*100
 
 
 ```
 
-We were able to improve the algorithm slightly, but significantly reduce the number of Type II errors. 
+The SMOTE method yielded a much worse FNR, and thus basic oversampling methods are more effective for prediction.  
