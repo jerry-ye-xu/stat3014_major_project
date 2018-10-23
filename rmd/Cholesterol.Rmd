@@ -7,9 +7,9 @@ output: html_document
 
 ## Predicting Abnormal Levels of Cholesterol
 
-Warning: The glm functions take a while to run. They have been commented out to save time when running the whole file
+Warning: The glm functions take a while to run. They have been commented out to save time when running the whole file.
 
-```{r, include=TRUE}
+```{r, include=FALSE}
 
 # library(tidyverse)
 library(tidyr)
@@ -18,6 +18,14 @@ library(broom) # for tidy()
 library(ggplot2)
 library(pROC)
 library(plotROC)
+library(gmodels) #CrossTable
+library(MLmetrics)
+library(ROCR)
+
+library(e1071) # SVM
+
+library(pscl)
+library(caTools) # train_test_split
 
 # library(rsample)      # data splitting - not available for the most recent version of R
 library(randomForestSRC) # basic RF package
@@ -28,6 +36,14 @@ source("./functions/cv_da.R")
 source("./functions/cv_rpart.R")
 source("./functions/cv_glm.R")
 source("./functions/cv_glm_backward.R")
+
+```
+
+Before doing anything, we'll set the seed to ensure reproducibility.
+
+```{r}
+
+set.seed(15)
 
 ```
 
@@ -47,18 +63,6 @@ all_variables = c(feature_variables, response_variables)
 
 nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
 nutm = nutm_orig[all_variables]
-
-```
-
-```{r}
-
-table(nutm$CHOLNTR) # Total Cholesterol Status
-table(nutm$HDLCHREB) # HDL Cholesterol Range
-table(nutm$LDLRESB) # LDL Cholesterol Range
-table(nutm$DIABBC) # Diabetes Mellitus status
-table(nutm$HCHOLBC) # High Cholesterol Status 
-table(nutm$HYPBC) # Hypertensive Disease status
-table(nutm$CVDMEDST) # Dyslipidemia status (1-3 are similar)
 
 ```
 
@@ -141,6 +145,8 @@ table(nutm["CHOLNTR"])
 
 ```
 
+We have a selection of variables that were filtered collectively by the group. Depending on the response variable. We shall subset these variables even further. 
+
 ```{r}
 
 cholesterol_response = c("CHOLNTR")
@@ -162,10 +168,8 @@ cholesterol_variables = c("BMISC", "AGEC", "EXLWTBC",
                        )
 
 cholesterol = nutm[c(cholesterol_response, cholesterol_variables)]
-
-table(cholesterol$CHOLNTR)
-
-# cholesterol <- mutate(cholesterol, CHOLNTR = ifelse(CHOLNTR == 1, "0", "1"))
+head(cholesterol)
+cholesterol <- mutate(cholesterol, CHOLNTR = ifelse(CHOLNTR == 1, "0", "1"))
 cholesterol$CHOLNTR <- as.factor(cholesterol$CHOLNTR)
 # cholesterol$HDLCHREB <- as.numeric(cholesterol$HDLCHREB)
 # cholesterol$LDLNTR <- as.numeric(cholesterol$LDLNTR)
@@ -174,28 +178,38 @@ head(cholesterol)
 
 ```
 
+We simply remove all rows were the null values exist. This does not cause us any major issues in both the size of the observed data and distortion of the proportion of the 2 classes.
+
 ```{r}
 
 cholesterol_no_na <- cholesterol[complete.cases(cholesterol), ]
 dim(cholesterol_no_na)
 
-table(cholesterol_no_na$CHOLNTR)
+table_values <- table(cholesterol_no_na$CHOLNTR)
 
-1855/(1069+1855)
+table_values[1]/sum(table_values)
+
 ```
+
+We check the null accuracy, which is 63%. I am certain we can build a model to make substantial impovements on this baseline accuracy. 
 
 Setting variables:
 
 ```{r}
 
-df_len = dim(cholesterol_no_na)[2]
+df_len = dim(cholesterol_no_na)[2] # no. of columns in Dataframe 
 df_len
 
 neighbours = 3
-V = 10
+V = 10 # cross-validation splits. 
 
 ```
 
+Now we can try to fit a KNN to test the code. 
+
+## Exploring Prediction with Baseline models 
+
+### K-nearest Neighbours
 
 ```{r}
 
@@ -203,7 +217,7 @@ X = data.frame(scale(cholesterol_no_na[, 2:df_len]))
 y = cholesterol_no_na$CHOLNTR
 cv_knn(X, y, k=neighbours, V=10, seed=1)
 
-k_neighbours = seq(1,29,by=2)
+k_neighbours = seq(1,21,by=2)
 cv_errors = c()
 for (i in 1:length(k_neighbours)) {
   cv_errors[i] = cv_knn(X, as.factor(y),k=k_neighbours[i],V,seed=1)
@@ -213,24 +227,72 @@ plot(k_neighbours, cv_errors, type="l", xlab="value of k", ylab="cross-validatio
 
 ```
 
+It seems like K-nearest neighbours performs even worse than the baseline. This is indeed baffling, which suggests that the 2 classes are close in the vector space and difficult to distinguish. 
+
+
+We quickly calculate the ROC curve here for knn here, after splitting the samples 70/30.
+
+```{r}
+
+sample_sub = sample.split(cholesterol_no_na$CHOLNTR, SplitRatio = 0.7)
+train = subset(cholesterol_no_na, sample_sub == TRUE)
+test  = subset(cholesterol_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+train_X <- train[, 2:df_len]
+test_X <-   test[, 2:df_len]
+
+knn_split_test <- knn(train=train_X, test=test_X, cl=train$CHOLNTR , k = 5)
+CrossTable(test$CHOLNTR, knn_split_test)
+
+roc_knn <- roc(as.numeric(test$CHOLNTR), as.numeric(knn_split_test))
+roc_knn
+plot(roc_knn)
+```
+
+```{r}
+
+F1_Score(test$CHOLNTR, knn_split_test, positive = NULL)
+
+```
+
+Let's try both the DA and CART algorithms as a sanity check. 
+
+### LDA and QDA
+
+```{r}
+
+X = data.frame(scale(cholesterol_no_na[, 2:15]))
+y = cholesterol_no_na$CHOLNTR
+
+cv_da(X = X, y = y, V = 10, method = "lda", seed = 1)
+cv_da(X = X, y = y, V = 10, method = "qda", seed = 1)
+
+```
+
+### CART
+
 ```{r}
 
 X <- as.matrix(cholesterol_no_na[, 2:df_len])
 y <- cholesterol_no_na$CHOLNTR
 cholesterol_no_na_cart <- data.frame(y, X)
 
-cv_rpart(X,y,V)
-
 res_rpart <- rpart(y ~ X
 , data=cholesterol_no_na)
 rpart.plot(res_rpart,type=1,extra=1, main="CART for Cholesterol, non_zeroes")
-res_rpart
 
+summary(res_rpart)
+
+print("The cross-validation accuracy is:")
 cv_rpart(X, y, V, seed=1)
 
 ```
 
-#### Random Forests
+Both the KNN and CART algorithms fail to perform. We now turn Random Forests, which partitions the dataset in both samples and features - increasing bias slightly in compensation to a considerable reduction in variance. 
+
+#### Improved Prediction with Random Forests
 
 ```{r}
 
@@ -239,9 +301,9 @@ y = cholesterol_no_na$CHOLNTR
 
 cholesterol_no_na_cart <- data.frame(y, X)
 
-train <- sample_frac(cholesterol_no_na_cart, 0.7)
-train_idx <- as.numeric(rownames(train))
-test <- cholesterol_no_na_cart[-train_idx,]
+sample_sub = sample.split(cholesterol_no_na$CHOLNTR, SplitRatio = 0.7)
+train = subset(cholesterol_no_na, sample_sub == TRUE)
+test  = subset(cholesterol_no_na, sample_sub == FALSE)
 head(train)
 head(test)
 
@@ -250,7 +312,7 @@ head(test)
 ```{r}
 
 chol_train <- ranger(
-  formula = y ~ .,
+  formula = CHOLNTR ~ .,
   data    = train,
   importance = "impurity"
   # xtest   = test$y,
@@ -263,7 +325,7 @@ chol_train$prediction.error
 print("Predict using the test set")
 chol_test <- predict(chol_train, data = test)
 
-table(test$y, chol_test$predictions)
+CrossTable(test$CHOLNTR, chol_test$predictions)
 
 chol_train$variable.importance %>% 
   tidy() %>%
@@ -280,14 +342,34 @@ Based on the confusion matrix, the accuracy is
 
 ```{r}
 
-(1722+769)/(1722+769+274+83)*100
+table_results <- table(test$CHOLNTR, chol_test$predictions)
+
+(table_results[1] + table_results[4])/(sum(table_results))*100
 
 ```
 
 ```{r}
 
-roc <- roc(response=as.numeric(test$y), predictor=as.numeric(chol_test$predictions))
-auc <- auc(response=as.numeric(test$y), predictor=as.numeric(chol_test$predictions))
+F1_Score(test$CHOLNTR, chol_test$predictions, positive = NULL)
+
+```
+
+
+I want to check the parameters for the RF model
+
+```{r}
+
+summary(chol_train)
+
+```
+
+
+This is a significant improvement in prediction accuracy compared to the first 2 algorithms we used. The distribution of type I and II errors are also acceptable, but not surprisingly we have relatively more false negatives.  
+
+```{r}
+
+roc <- roc(response=as.numeric(chol_test$predictions), predictor=as.numeric(test$CHOLNTR))
+auc <- auc(response=as.numeric(test$CHOLNTR), predictor=as.numeric(chol_test$predictions))
 plot(roc)
 
 roc
@@ -297,75 +379,206 @@ auc
 
 __Tuning the Hyperparameters__
 
-```{r, eval=FALSE, include=FALSE}
+```{r, eval=TRUE, include=FALSE}
 
 hyper_grid_2 <- expand.grid(
-  num.trees = c(300, 400, 500),
-  mtry       = seq(5, 14, by = 2),
-  node_size  = seq(3, 8, by = 2),
-  sampe_size = c(.55, .632, .70),
-  OOB_RMSE  = 0
+  mtry       = seq(1, 7, by = 2),
+  node_size  = seq(1, 5, by = 2),
+  sample_size = c(.55, .632, .70),
+  CLASS_ACCURACY  = 0
 )
-
-hyper_grid_2
 
 # perform grid search
 for(i in 1:nrow(hyper_grid_2)) {
   
   # train model
   model <- ranger(
-    formula         = y ~ ., 
+    formula         = CHOLNTR ~ ., 
     data            = train, 
+    write.forest    = TRUE,
     importance      = "impurity",
     num.trees       = 500,
     mtry            = hyper_grid_2$mtry[i],
     min.node.size   = hyper_grid_2$node_size[i],
-    sample.fraction = hyper_grid_2$sampe_size[i],
+    sample.fraction = hyper_grid_2$sample_size[i],
     seed            = 123
   )
   
+  diabetes_test <- predict(model, data = test)
+  c_m <- table(test$CHOLNTR, diabetes_test$predictions)[1:4]
   # add OOB error to grid
-  hyper_grid_2$OOB_RMSE[i] <- sqrt(model$prediction.error)
+  classification_accuracy_for_test_set <- (c_m[1]+c_m[4])/sum(c_m)
+  
+  hyper_grid_2$CLASS_ACCURACY[i] <- classification_accuracy_for_test_set
 }
 
 hyper_grid_2 %>% 
-  dplyr::arrange(OOB_RMSE) %>%
+  dplyr::arrange(CLASS_ACCURACY) %>%
   head(10)
 
 ```
 
-### LDA and QDA
+```{r, eval=TRUE, include=FALSE}
 
-```{r}
+tuning_results <- hyper_grid_2[order(hyper_grid_2$CLASS_ACCURACY, decreasing=TRUE), ]
+head(tuning_results)
+optimal_parameters_idx <-rownames(tuning_results)[1]
 
-X = data.frame(scale(cholesterol_no_na[, 2:15]))
-y = cholesterol_no_na$CHOLNTR
+```
 
-cv_da(X = X, y = y, V = 10, method = "lda", seed = 1)
-cv_da(X = X, y = y, V = 10, method = "qda", seed = 1)
+```{r, eval=TRUE, include=FALSE}
+
+sample_sub = sample.split(cholesterol_no_na_cart$y, SplitRatio = 0.7)
+train = subset(cholesterol_no_na_cart, sample_sub == TRUE)
+test  = subset(cholesterol_no_na_cart, sample_sub == FALSE)
+head(train)
+head(test)
+
+
+diabetes_train <- ranger(
+  formula         = y ~ .,
+  data            = train,
+  importance      = "impurity",
+  num.trees       = 500,
+  mtry            = hyper_grid_2[optimal_parameters_idx, "mtry"],
+  min.node.size   = hyper_grid_2[optimal_parameters_idx, "node_size"],
+  sample.fraction = hyper_grid_2[optimal_parameters_idx, "sample_size"]
+)
+
+diabetes_train$variable.importance
+diabetes_train$prediction.error
+
+print("Predict using the test set")
+diabetes_test <- predict(diabetes_train, data = test)
+
+CrossTable(test$y, diabetes_test$predictions)
 
 ```
 
 #### GLMs
 
-```{r}
+
+__Analysing the Coefficients__
+
+```{r, include=FALSE}
 
 X = data.frame(cholesterol_no_na[, 2:df_len])
 y = cholesterol_no_na$CHOLNTR
 
 mutate(cholesterol_no_na, CHOLNTR = ifelse(CHOLNTR == "0", 0, 1))
 
+```
+
+```{r}
+
 logistic_regression = glm(y~., family=binomial, data=X)
 summary(logistic_regression)
 
+anova(logistic_regression)
+pR2(logistic_regression) # Look at McFadden
+
 ```
+
+```{r}
+
+cv_glm(X, y, V = 10)
+
+```
+
+
+__Testing Prediction Capabilities for Logistic Regression__
+
+Now let's test how well this model performs. 
+
+```{r}
+
+head(test)
+
+```
+
+
+```{r}
+
+sample_sub = sample.split(cholesterol_no_na$CHOLNTR, SplitRatio = 0.7)
+train = subset(cholesterol_no_na, sample_sub == TRUE)
+test  = subset(cholesterol_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+prob_threshold = 0.45
+
+chol_test_pred <- predict(logistic_regression, newdata=test, type='response')
+chol_test_pred <- ifelse(chol_test_pred > prob_threshold, 1, 0)
+
+CrossTable(test$CHOLNTR, chol_test_pred)
+
+misClasificError <- mean(chol_test_pred != test$CHOLNTR)
+print(paste('Accuracy: ',1-misClasificError))
+
+print(paste("F1 score: ", F1_Score(test$CHOLNTR, chol_test_pred, positive=0)))
+
+```
+
+```{r}
+
+pr <- prediction(chol_test_pred, test$CHOLNTR)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+
+
+```
+
+Logistic regression performs rather poorly, with tuning of the threshold probability p leading to no substantial improvement in both the classification accuracy nor the overall F1_score. 
+
+It seems that Random Forest is vastly superior to the other classification algorithms for this dataset. 
 
 Now let's try to conduct some cross-validation on GLMs. 
 
 ```{r, eval=FALSE, include=FALSE}
 
-cv_glm(X, y, V = 10)
 cv_glm_backward(X, y, V = 10, pen = log(df_samples))
 cv_glm_backward(X, y, V = 10, pen = 2)
+
+```
+
+## Support Vector Machines
+
+```{r}
+
+class_weights = c(1, 17)
+
+sample_sub = sample.split(cholesterol_no_na$CHOLNTR, SplitRatio = 0.7)
+train = subset(cholesterol_no_na, sample_sub == TRUE)
+test  = subset(cholesterol_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+svm_model <- svm(CHOLNTR ~ ., data=train, kernel="polynomial",
+                 coef0=1,
+                 gamma=0.1,
+                 cost=0.1,
+                 class.weights=c("0"=class_weights[1], "1"=class_weights[2])
+                 )
+summary(svm_model)
+
+test_pred <- predict(svm_model, test[, -1])
+test_pred[1:10]
+
+```
+
+```{r}
+
+CrossTable(test$CHOLNTR, test_pred)
+
+table_results <- table(test$CHOLNTR, test_pred)
+print("Accuracy:")
+(table_results[1]+table_results[2])/sum(table_results)*100
+
+print("F1_score:")
+F1_Score(test$CHOLNTR, test_pred)
 
 ```
