@@ -7,8 +7,28 @@ output: html_document
 
 ```{r}
 
+library(tidyr)
+library(dplyr)
 library(MASS)
+library(broom) # for tidy()
 library(brant) # Use this to test for parallel regression assumption
+library(randomForestSRC) # basic RF package
+library(ranger)
+library(pROC)
+library(plotROC)
+library(gmodels) #CrossTable
+library(MLmetrics)
+library(ROCR)
+
+library(VGAM)
+
+library(Hmisc) # Proportional Logit Models, for checking parallel assumption visually. 
+
+```
+
+```{r}
+
+set.seed(5)
 
 ```
 
@@ -102,7 +122,8 @@ head(nutm)
 ```{r}
 
 cholesterol_response = c("LDLRESB")
-cholesterol_variables = c("BMISC", "AGEC", "EXLWTBC", 
+cholesterol_variables = c("BMISC", "AGEC", 
+                       #"EXLWTBC", 
                        # "SF2SA1QN", "INCDEC",
                        # "HSUGBC", 
                        "FATT1", "SUGART1", 
@@ -156,9 +177,70 @@ df_row
 
 ```
 
+## Setting up a baseline with Random Forests
+
 ```{r}
 
-chol_ordinal <- polr(LDLRESB ~ ., data=cholesterol_no_na, Hess=TRUE, model=FALSE)
+train <- sample_frac(cholesterol_no_na, 0.7)
+train_idx <- as.numeric(rownames(train))
+test <- cholesterol_no_na[-train_idx,]
+head(train)
+head(test)
+
+```
+
+
+```{r}
+
+chol_train <- ranger(
+  formula = LDLRESB ~ .,
+  data    = train,
+  importance = "impurity"
+  # xtest   = test$y,
+  # ytest   = test[, 2:df_len]
+)
+
+chol_train$variable.importance
+chol_train$prediction.error
+
+print("Predict using the test set")
+chol_test <- predict(chol_train, data = test)
+chol_test
+
+table(test$LDLRESB, chol_test$predictions)
+
+chol_train$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  ggplot(aes(reorder(names, x), x)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Top 25 important variables")
+
+```
+
+The interesting thing here is the relative importance of all the variables. Compared to the binary outcome, the relative importance of all variables have increased and are much more closer to each other. This could be because that the increased number of outcomes allows the importance of each variable to be spread across multiple classes, as each "class" becomes more specific. 
+
+```{r}
+
+(28+109+259+402+432+333+158+155)/2443*100
+
+F1_Score(test$LDLRESB, chol_test$predictions)
+
+```
+
+The multiclass classification by the Random Forest has reasonably extremely well. Generally, the majority of predictions are correctly predicted in their respective class, and the F1 score is certainly reasonable. 
+
+However, the end result is only a 76% accuracy, and given that the response variable is ordinal, it is certainly more appropriate to use proportional logit models. 
+
+## Proportional Logit Models
+
+```{r}
+
+cholesterol_no_na
+
+chol_ordinal <- polr(LDLRESB ~ ., data=cholesterol_no_na, Hess=TRUE, model=TRUE)
 summary(chol_ordinal)
 
 ```
@@ -167,13 +249,34 @@ We transform the coefficients to log-odds
 
 ```{r}
 
-coefs <- coef(chol_ordinal)
+summary_table <- coef(summary(chol_ordinal))
 
-log_odds <- (exp(coefs) - 1)*100
-log_odds
+p_values <- pnorm(abs(coefs[, "t value"]), lower.tail=FALSE)*2
+summary_table <- cbind(summary_table, "p values" = p_values)
+
+summary_table
 
 ```
 
+```{r}
+
+CI <- confint(chol_ordinal) # Takes a while to run
+CI
+
+```
+
+
+```{r}
+
+CI_norm <- confint.default(chol_ordinal) # Assuming normality of feature variables
+
+OR <- exp(coef(chol_ordinal))
+
+unit_increase <- (exp(coef(chol_ordinal))-1)*100 # Percentage change give one unit increase in independent variable 
+
+ cbind("Odds Ratio" = OR, "Odds % Change" = unit_increase, "CI" = CI_norm)
+
+```
 
 
 ```{r}
@@ -190,8 +293,103 @@ t_values
 p_values <- round((1 - pt(abs(t_values), df=df_row-df_len, lower.tail=TRUE))*2, 2)
 p_values
 
-data.frame(cbind(colnames(cholesterol_no_na), t_values, p_values))
+data.frame(cbind("Feature Variables" = colnames(cholesterol_no_na), t_values, p_values))
+
+
+
 ```
+
+## Prediction with the Model
+
+Let's simulate some data and see whether we can use for predictions. 
+
+```{r}
+df_rows <- dim(cholesterol_no_na)[1]
+
+rownames(cholesterol_no_na) <- seq(1:df_rows)
+tail(cholesterol_no_na)
+
+```
+
+
+```{r}
+
+# <-  data.frame(scale(cholesterol_no_na[, 1:14]))
+# y = cholesterol_no_na$LDLRESB
+
+# chol_scaled <- data.frame(y, X)
+# head(chol_scaled)
+
+# Note: Scaled data leaves bad predictions
+
+train <- sample_frac(cholesterol_no_na, 0.8)
+train_idx <- as.numeric(rownames(train))
+test_ordinal <- cholesterol_no_na[-train_idx,]
+
+print("Dim: chol, Dim: train, Dim: test")
+dim(chol_scaled)
+dim(test_ordinal)
+dim(train)
+
+head(train)
+head(test_ordinal)
+
+chol_ordinal <- polr(LDLRESB ~ ., data=train, Hess=TRUE, model=TRUE)
+summary(chol_ordinal)
+
+
+```
+
+```{r}
+
+print("Predict using the test set")
+chol_test_pred <- predict(chol_ordinal, test_ordinal, type="probs")
+
+print(paste("Dim test ordinal: ", dim(test_ordinal)[1], dim(test_ordinal)[2]))
+print(paste("Dim chol_test_pred: ", dim(chol_test_pred)[1], dim(chol_test_pred)[2]))
+
+```
+
+```{r}
+
+chol_test_pred[1:10, 1:8]
+
+```
+
+
+```{r}
+
+df_len <- dim(test_ordinal)[1]
+df_len
+
+chol_test_pred_class <- max.col(chol_test_pred[1:df_len, ])
+chol_test_pred_class[1:10]
+```
+
+```{r}
+
+length(test_ordinal$LDLRESB)
+
+table(test_ordinal$LDLRESB)
+table(test_ordinal$LDLRESB, chol_test_pred_class)
+
+#(28+109+259+402+432+333+158+155)/2443*100
+
+#F1_Score(test$LDLRESB, chol_test$predictions)
+
+```
+
+```{r}
+
+test_ordinal <- cbind(test_ordinal, chol_test_pred_class)
+test_ordinal
+
+```
+
+
+The proportional logit model appear to be very conservative in their predictions. This may be attributed to the parallel assumptions model not being met. Another reason is the relative distribution of the classes. There are significantly more samples in the middle range of cholesterol levels, which means that the estimates are likely biased towards the middle. 
+
+## Assessing the Assumption of Parallel Regression
 
 ```{r}
 
@@ -199,16 +397,50 @@ brant(chol_ordinal)
 
 ```
 
+```{r}
+
+sf <- function(y){
+  c('Y>=1' = qlogis(mean(y >= 1)),
+    'Y>=2' = qlogis(mean(y >= 2)),
+    'Y>=3' = qlogis(mean(y >= 3)),
+    'Y>=4' = qlogis(mean(y >= 4)),
+    'Y>=5' = qlogis(mean(y >= 5)),
+    'Y>=6' = qlogis(mean(y >= 6)),
+    'Y>=7' = qlogis(mean(y >= 7)),
+    'Y>=8' = qlogis(mean(y >= 8))
+    )
+}
+
+s <- with(data=chol_ordinal, summary(as.numeric(LDLRESB) ~ . , data=cholesterol_no_na, fun=sf))
+s
+```
 
 ```{r}
 
-plot(profile(chol_ordinal))
+# BMISC   |[15.2,23.9)  | 734|Inf |4.185514|2.203294|1.0590388|-0.03815177|-0.90772333|-1.980614|-2.776940
+
+glm(I(as.numeric(LDLRESB) >= 2) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(LDLRESB) >= 3) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(LDLRESB) >= 4) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(LDLRESB) >= 5) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(LDLRESB) >= 6) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(LDLRESB) >= 7) ~ BMISC, family="binomial", data = cholesterol_no_na)
 
 ```
 
-The Brant test does not hold. Hence we have reason to not use the ordinal logistic regression.
+The Brant test does holds, and looking at the table of coefficient classes. In general, the change in slopes are reasonably similar across all different subgroups of each response variable, and follow a similar trend.
 
-So perhaps we can try GoLogit/ppo (generalised ordinal logit, partial proportional odds model) model. 
+Whilst it may be interesting to research further into partial proportional logit models, it seems that in general the parallel regression assumption holds. 
 
-## Partial Ordinal Logistic Regression
+However, since the predictions are quite off, let's try to use partial proportional odds models (ppo).
+
+## Prediction using PPO models 
+
+Let's see if we're able to do any better, which we should be able to but interpreting this PPO model will be key. 
+
+```{r}
+
+
+
+```
 
