@@ -142,7 +142,7 @@ hype_variables = c("BMISC", "AGEC", "EXLWTBC",
                        )
 
 hype = nutm[c(hype_response, hype_variables)]
-# hype = hype[hype$HYPBC != 3, ] # Removing that pecular case (see below)
+hype = hype[(hype$HYPBC != 3) & (hype$HYPBC != 2), ] # Removing that pecular case (see below)
 table(hype$HYPBC)
 
 hype <- mutate(hype, HYPBC = ifelse(HYPBC == 5, "0", "1"))
