@@ -7,11 +7,15 @@ output: html_document
 
 ## Summary
 
-The analysis of diabetes presented a major challenge in handling a huge class imbalance. Standard classification algorithms were tried but yielded fruitless results, given that overwhelming ~94% majority in one class. A simple decision tree algorithm simply predicted all instances to belong to one class, which is undesirable. Hence a Random Forest model was implemented, which yielded an improvement in prediction to approximately ~98%. This seemed promising, but there was still a Type II error of roughly ~33%, which gives us room for improvement.
+The analysis of diabetes presented a major challenge in handling a huge class imbalance. Standard classification algorithms were tried but yielded fruitless results, given that overwhelming ~94% majority in one class. A simple decision tree algorithm simply predicted all instances to belong to one class, which is undesirable. Hence a Random Forest model was implemented, but this yielded not results, as the forest continued to classify all test samples into the same class. 
 
 Given the overwhelming majority of one class, it made sense to consider methods to deal with this. In particular, I attempted the basic and synthetic minority over-sampling technique (SMOTE) upsampling methods, as well as penalised-SVM to adjust for Type I and II errors. 
 
-In the basic oversampling methods, 
+In the oversampling methods, the original data was first partitioned (70/30) into a training set and a test set. This training set had the minority class upsampled such as that the class balanced was approximately 2/3 to 1/3. A random forest and logistic regression was fitted and used to predict for the test set, which contains data that has not been seen. The results improved slightly, but the Type II errors still constituted a majority of the errors. 
+
+Lastly, the penalised-SVM with considerably increase in weights for the minority class acheived a more balanced approach, with 33% test samples resulting in a Type II error which is a significant reduction from the other 2 models used. However, this resulted in 25% Type I error, which arguably is a small trade-off if reducing Type II errors is the more important outcome. There was no upsampling done for this method, the original imbalanced dataset was used.  
+
+Further fine-tuning can perhaps increase the overall prediction accuracy. 
 
 
 ## Predicting Diabetes Mellitus
@@ -233,6 +237,18 @@ neighbours = 3
 V = 10
 
 ```
+
+```{r}
+
+density <- ggplot(nutm, aes(x = nutm[variable_name], fill = "r")) +
+geom_density(alpha = 0.5) + geom_vline(xintercept = mean(nutm[variable_name], na.rm=TRUE), linetype="dashed", color="black", size=1) + 
+xlab(variable_name) + 
+scale_fill_discrete(labels=c(variable_name)) + guides(fill=guide_legend(title=NULL)) 
+
+density
+
+```
+
 
 Now we can try to fit a KNN to test the code. 
 
@@ -1002,6 +1018,11 @@ head(test_diabetes)
 ```
 
 We first run an SVM before actually engaging with a test set.
+
+```{r}
+table(train_diabetes$DIABBC)
+```
+
 
 ```{r}
 
