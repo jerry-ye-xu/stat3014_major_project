@@ -5,6 +5,10 @@ date: "16 October 2018"
 output: html_document
 ---
 
+## Summary
+
+Unfortunately, none of the variables here had sufficient difference between the 2 classes to allow the algorithms to learn from the features to distinguish between them. At the end of the all the analysis, we visualised the densities of each feature variable grouped by class and unsurprisingly, the densities were almost identical in most cases except for the age variable. We further confirmed this by running a PCA to visualise the variabilities of the data on a 2D plan by class, and again, the classes were spread evenly across the 2 most important components. 
+
 ## Predicting Abnormal Levels of Cholesterol
 
 Warning: The glm functions take a while to run. They have been commented out to save time when running the whole file.
@@ -26,6 +30,13 @@ library(e1071) # SVM
 
 library(pscl)
 library(caTools) # train_test_split
+
+library(gridExtra) # Grid plotting for ggplot2
+library(factoextra)
+library(kmed)
+library(cluster)
+library(outliers)
+library(ggbiplot)
 
 # library(rsample)      # data splitting - not available for the most recent version of R
 library(randomForestSRC) # basic RF package
@@ -186,7 +197,7 @@ cholesterol_no_na <- cholesterol[complete.cases(cholesterol), ]
 dim(cholesterol_no_na)
 
 table_values <- table(cholesterol_no_na$CHOLNTR)
-
+table_values
 table_values[1]/sum(table_values)
 
 ```
@@ -418,15 +429,17 @@ hyper_grid_2 %>%
 
 ```
 
-```{r, eval=TRUE, include=FALSE}
+```{r, eval=TRUE, include=TRUE}
 
 tuning_results <- hyper_grid_2[order(hyper_grid_2$CLASS_ACCURACY, decreasing=TRUE), ]
 head(tuning_results)
 optimal_parameters_idx <-rownames(tuning_results)[1]
 
+hyper_grid_2[order(-hyper_grid_2$CLASS_ACCURACY), ]
+             
 ```
 
-```{r, eval=TRUE, include=FALSE}
+```{r, eval=TRUE, include=TRUE}
 
 sample_sub = sample.split(cholesterol_no_na_cart$y, SplitRatio = 0.7)
 train = subset(cholesterol_no_na_cart, sample_sub == TRUE)
@@ -549,7 +562,7 @@ cv_glm_backward(X, y, V = 10, pen = 2)
 
 ```{r}
 
-class_weights = c(1, 17)
+class_weights = c(1, 1.75)
 
 sample_sub = sample.split(cholesterol_no_na$CHOLNTR, SplitRatio = 0.7)
 train = subset(cholesterol_no_na, sample_sub == TRUE)
@@ -575,10 +588,167 @@ test_pred[1:10]
 CrossTable(test$CHOLNTR, test_pred)
 
 table_results <- table(test$CHOLNTR, test_pred)
+
 print("Accuracy:")
-(table_results[1]+table_results[2])/sum(table_results)*100
+(table_results[1]+table_results[4])/sum(table_results)*100
 
 print("F1_score:")
 F1_Score(test$CHOLNTR, test_pred)
 
 ```
+
+## Visualising Variables 
+
+```{r}
+
+df <- cholesterol_no_na
+
+density_bmi <- ggplot(df, aes(x = df$BMISC, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$BMISC, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("BMISC")
+
+density_age <- ggplot(df, aes(x = df$AGEC, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$AGEC, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("AGEC")
+
+density_fat <- ggplot(df, aes(x = df$FATT1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$FATT1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("FATT1")
+
+density_sugar <- ggplot(df, aes(x = df$SUGART1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SUGART1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SUGART1")
+
+density_fat_precent <- ggplot(df, aes(x = df$FATPER1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$FATPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("FATPER1")
+
+density_linoleic <- ggplot(df, aes(x = df$LAPER1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$LAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("LAPER1")
+
+density_alpha_linoleic <- ggplot(cholesterol_no_na, aes(x = cholesterol_no_na$ALAPER1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(cholesterol_no_na$ALAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("ALAPER1")
+
+density_carbo_percent <- ggplot(df, aes(x = df$CHOPER1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$CHOPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("CHOPER1")
+
+density_sat_percent <- ggplot(df, aes(x = df$SATPER1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SATPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SATPER1")
+
+density_trans_fat_percent <- ggplot(df, aes(x = df$TRANPER1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$TRANPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("TRANPER1")
+
+density_mono_fat_percent <- ggplot(df, aes(x = df$MONOPER1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$MONOPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("MONOPER1")
+
+density_poly_fat_percent <- ggplot(df, aes(x = df$POLYPER1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$POLYPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("POLYPER1")
+
+density_systol <- ggplot(df, aes(x = cholesterol_no_na$SYSTOL, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SYSTOL, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SYSTOL")
+
+density_niacin <- ggplot(df, aes(x = df$B3T1, fill = CHOLNTR)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$B3T1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("B3T1")
+
+grid.arrange(density_bmi, density_age, density_fat, 
+             density_sugar, density_fat_precent, density_linoleic, 
+             density_alpha_linoleic, density_carbo_percent, density_sat_percent,
+             density_trans_fat_percent, density_mono_fat_percent, density_poly_fat_percent,
+             density_systol, density_niacin,
+             nrow = 5, ncol = 3)
+
+```
+
+As we suspected, the variables partitioned by class are barely distinguishable. It is no wonder then, that the models fails to have any meaningful increase in accuracy.
+
+### Principal Component Analysis
+
+```{r}
+
+chol_cluster <- cholesterol_no_na[, 2:df_len]
+nutm_cluster_int <- data.frame(scale(chol_cluster))
+
+```
+
+
+```{r}
+
+nutm_pca <- princomp(nutm_cluster_int, cor=TRUE)
+summary(nutm_pca)
+
+```
+
+```{r}
+
+nutm_pca$sdev[1:10]
+nutm_pca$scores[1:20, 1:2]
+
+```
+
+```{r}
+
+apply(nutm_cluster_int, 2, cor, nutm_pca$scores[, 1]) # apply for df over columns, FUNC=cor and you're correlating with nutm_pca scores.
+
+```
+
+```{r}
+
+plot(nutm_pca, type="l", main="PCA for LDL Cholesterol Feature Variables")
+
+```
+
+```{r}
+
+head(cholesterol_no_na)
+
+k_pca <- ggbiplot(nutm_pca, obs.scale = 1, var.scale = 1,
+                  groups = cholesterol_no_na$CHOLNTR,
+                  varname.size = 2, labels.size = 2,
+                  ellipse = TRUE, circle = TRUE
+                  ) + 
+  scale_color_manual(name="Class", values=c("black", "red")) +
+  theme(legend.direction ="horizontal", 
+        legend.position = "top")
+
+print(k_pca)
+
+```
+
+There appears to be variance within the feature variables itself, but the majority of the variance exists in both classes, and will be difficult to distingiush and predict. Much of the correlated variance comes from the various fats, but it is in the end unable to separate the data effectively. 
