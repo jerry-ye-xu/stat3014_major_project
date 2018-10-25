@@ -1,0 +1,600 @@
+---
+title: "HDL_cholesterol"
+author: "Jerry Xu"
+date: "24 October 2018"
+output: html_document
+---
+
+```{r}
+
+library(tidyr)
+library(dplyr)
+library(MASS)
+library(broom) # for tidy()
+library(brant) # Use this to test for parallel regression assumption
+library(randomForestSRC) # basic RF package
+library(ranger)
+library(pROC)
+library(plotROC)
+library(gmodels) #CrossTable
+library(MLmetrics)
+library(ROCR)
+library(caTools) # train_test_split
+
+library(VGAM)
+
+library(Hmisc) # Proportional Logit Models, for checking parallel assumption visually. 
+
+```
+
+```{r}
+
+set.seed(5)
+
+```
+
+
+## Ordinal Logistic Regression with LDL Cholesterol
+
+```{r}
+
+feature_variables = c("BMISC", "AGEC", "PHDKGWBC", "EXLWTBC", "SF2SA1QN", "INCDEC", "HSUGBC", "FATT1", "SUGART1", "PREVAT1", "PROVAT1", "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", "SUGPER1", "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", "ADTOTSE", "SEX", "SMKSTAT", "SYSTOL", "FASTSTAD", "HDLCHREB", "LDLNTR", "LDLRESB", "B3T1")
+
+# BMR, SLPTIME
+
+response_variables = c("CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST")
+
+all_variables = c(feature_variables, response_variables)
+
+nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
+nutm = nutm_orig[all_variables]
+
+```
+
+We'll need to reprocess some of the variables as factors. 
+
+```{r}
+
+categoricalList <- c()
+
+categoricalList[ 1 ] <- FALSE #  BMISC 
+categoricalList[ 2 ] <- FALSE #  AGEC 
+
+categoricalList[ 3 ] <- FALSE #  PHDKGWBC 
+
+categoricalList[ 4 ] <- FALSE #  EXLWTBC 
+
+categoricalList[ 5 ] <- TRUE #  SF2SA1QN 
+categoricalList[ 6 ] <- TRUE #  INCDEC 
+
+categoricalList[ 7 ] <- TRUE #  HSUGBC 
+
+categoricalList[ 8 ] <- FALSE #  FATT1 
+
+categoricalList[ 9 ] <- FALSE #  SUGART1 
+
+categoricalList[ 10 ] <- FALSE #  PREVAT1 
+categoricalList[ 11 ] <- FALSE #  PROVAT1 
+
+categoricalList[ 12 ] <- FALSE #  FATPER1 
+categoricalList[ 13 ] <- FALSE #  LAPER1 
+categoricalList[ 14 ] <- FALSE #  ALAPER1 
+categoricalList[ 15 ] <- FALSE #  CHOPER1 
+categoricalList[ 16 ] <- FALSE #  SUGPER1 
+
+categoricalList[ 17 ] <- FALSE #  SATPER1 
+categoricalList[ 18 ] <- FALSE #  TRANPER1 
+
+categoricalList[ 19 ] <- FALSE #  MONOPER1 
+categoricalList[ 20 ] <- FALSE #  POLYPER1 
+categoricalList[ 21 ] <- FALSE #  ADTOTSE 
+
+categoricalList[ 22 ] <- TRUE #  SEX 
+
+categoricalList[ 23 ] <- TRUE #  SMKSTAT 
+categoricalList[ 24 ] <- FALSE #  SYSTOL 
+
+categoricalList[ 25 ] <- TRUE #  FASTSTAD 
+
+categoricalList[ 26 ] <- TRUE #  HDLCHREB 
+categoricalList[ 27 ] <- TRUE #  LDLNTR 
+categoricalList[ 28 ] <- TRUE #  LDLRESB 
+
+categoricalList[ 29 ] <- FALSE #  B3T1
+
+categoricalList[ 30 ] <- TRUE #  CHOLNTR 
+categoricalList[ 31 ] <- TRUE #  HDLCHREB 
+categoricalList[ 32 ] <- TRUE #  DIABBC 
+categoricalList[ 33 ] <- TRUE #  HCHOLBC 
+categoricalList[ 34 ] <- TRUE #  HYPBC 
+categoricalList[ 35 ] <- TRUE #  CVDMEDST 
+
+# "CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST"
+
+for (i in 1:length(categoricalList)) {
+  if (categoricalList[ i ]) {
+      nutm[, i] <- as.factor(nutm[ ,i])
+  }
+}
+
+head(nutm)
+```
+
+```{r}
+
+cholesterol_response = c("HDLCHREB")
+cholesterol_variables = c("BMISC", "AGEC", 
+                       #"EXLWTBC", 
+                       # "SF2SA1QN", "INCDEC",
+                       # "HSUGBC", 
+                       "FATT1", "SUGART1", 
+                       "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       # "ADTOTSE",
+                       # "SEX"
+                       # "SMKSTAT", 
+                       "SYSTOL", 
+                       # "FASTSTAD", 
+                       # "HDLCHREB", 
+                       # "LDLNTR", # Fasting cholesterol status... not sure if forward-looking bias or not. 
+                       # "LDLRESB", # Response variable
+                       "B3T1"
+                       )
+
+all_variables = c(cholesterol_variables, cholesterol_response)
+
+cholesterol = nutm_orig[all_variables]
+cholesterol$HDLCHREB <- as.factor(cholesterol$HDLCHREB)
+
+head(cholesterol)
+```
+
+
+```{r}
+
+head(cholesterol)
+
+table(nutm$HDLCHREB) # HDL Cholesterol range
+
+sum((is.na(cholesterol$HDLCHREB)))
+
+```
+
+```{r}
+
+cholesterol_no_na <- cholesterol[complete.cases(cholesterol), ]
+dim(cholesterol_no_na)
+
+table(cholesterol_no_na$HDLCHREB)
+
+df_len = dim(cholesterol_no_na)[2]
+df_len
+
+df_row = dim(cholesterol_no_na)[1]
+df_row
+
+```
+
+## Setting up a baseline with Random Forests
+
+```{r}
+
+sample_sub = sample.split(cholesterol_no_na$HDLCHREB, SplitRatio = 0.7)
+train = subset(cholesterol_no_na, sample_sub == TRUE)
+test  = subset(cholesterol_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+```
+
+
+```{r}
+
+chol_train <- ranger(
+  formula = HDLCHREB ~ .,
+  data    = train,
+  importance = "impurity"
+  # xtest   = test$y,
+  # ytest   = test[, 2:df_len]
+)
+
+chol_train$variable.importance
+chol_train$prediction.error
+
+print("Predict using the test set")
+chol_test <- predict(chol_train, data = test)
+chol_test
+
+rf_test_results <- table(test$HDLCHREB, chol_test$predictions)
+rf_test_results
+
+chol_train$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  ggplot(aes(reorder(names, x), x)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Top 25 important variables")
+
+```
+
+The interesting thing here is the relative importance of all the variables. Compared to the binary outcome, the relative importance of all variables have increased and are much more closer to each other. This could be because that the increased number of outcomes allows the importance of each variable to be spread across multiple classes, as each "class" becomes more specific. However on the flip side, this also means that the variables are unable to distinguish between the different classes. 
+
+```{r}
+
+rf_test_results
+
+(rf_test_results[1] + rf_test_results[7] + rf_test_results[14] + rf_test_results[21] + rf_test_results[28] + rf_test_results[35] )/(sum(rf_test_results))*100
+
+```
+
+The multiclass classification by the Random Forest has reasonably extremely well. Generally, the majority of predictions are correctly predicted in their respective class, and the F1 score is certainly reasonable. 
+
+However, the end result is only a 76% accuracy, and given that the response variable is ordinal, it is certainly more appropriate to use proportional logit models. 
+
+## Proportional Logit Models
+
+```{r}
+
+head(cholesterol_no_na)
+
+chol_ordinal <- polr(HDLCHREB ~ ., data=cholesterol_no_na, Hess=TRUE, model=TRUE)
+summary(chol_ordinal)
+
+```
+
+We transform the coefficients to log-odds
+
+```{r}
+
+summary_table <- coef(summary(chol_ordinal))
+
+coefs <- coef(summary(chol_ordinal))
+
+p_values <- pnorm(abs(coefs[, "t value"]), lower.tail=FALSE)*2
+summary_table <- cbind(summary_table, "p values" = p_values)
+
+print("Table of p-values")
+summary_table
+
+```
+
+```{r}
+
+CI <- confint(chol_ordinal) # Takes a while to run
+CI
+
+```
+
+
+```{r}
+
+CI_norm <- confint.default(chol_ordinal) # Assuming normality of feature variables
+
+OR <- exp(coef(chol_ordinal))
+
+unit_increase <- (exp(coef(chol_ordinal))-1)*100 # Percentage change give one unit increase in independent variable 
+
+ cbind("Odds Ratio" = OR, "Odds % Change" = unit_increase, "CI" = CI_norm)
+
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+
+df_len = dim(cholesterol_no_na)[2]
+df_len
+
+df_row = dim(cholesterol_no_na)[1]
+df_row
+
+t_values <- tidy(chol_ordinal)$statistic[1:df_len]
+t_values
+
+p_values <- round((1 - pt(abs(t_values), df=df_row-df_len, lower.tail=TRUE))*2, 2)
+p_values
+
+data.frame(cbind("Feature Variables" = colnames(cholesterol_no_na), t_values, p_values))
+
+```
+
+## Prediction with the Model
+
+Let's simulate some data and see whether we can use for predictions. 
+
+```{r}
+df_rows <- dim(cholesterol_no_na)[1]
+
+rownames(cholesterol_no_na) <- seq(1:df_rows)
+tail(cholesterol_no_na)
+
+```
+
+
+```{r}
+
+# <-  data.frame(scale(cholesterol_no_na[, 1:14]))
+# y = cholesterol_no_na$HDLCHREB
+
+# chol_scaled <- data.frame(y, X)
+# head(chol_scaled)
+
+# Note: Scaled data leaves bad predictions
+
+sample_sub = sample.split(cholesterol_no_na$HDLCHREB, SplitRatio = 0.7)
+train = subset(cholesterol_no_na, sample_sub == TRUE)
+test  = subset(cholesterol_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+print("Dim: chol, Dim: train, Dim: test")
+#dim(chol_scaled)
+dim(test)
+dim(train)
+
+head(train)
+head(test)
+
+chol_ordinal <- polr(HDLCHREB ~ ., data=train, Hess=TRUE, model=TRUE)
+summary(chol_ordinal)
+
+
+```
+
+```{r}
+
+print("Predict using the test set")
+chol_test_pred <- predict(chol_ordinal, test, type="probs")
+
+print(paste("Dim test ordinal: ", dim(test)[1], dim(test)[2]))
+print(paste("Dim chol_test_pred: ", dim(test)[1], dim(test)[2]))
+
+```
+
+```{r}
+
+chol_test_pred[1:10]
+
+```
+
+
+```{r}
+
+df_len <- dim(test)[1]
+df_len
+
+chol_test_pred_class <- max.col(chol_test_pred[1:df_len, ])
+chol_test_pred_class[1:10]
+```
+
+```{r}
+
+length(test$HDLCHREB)
+
+table(test$HDLCHREB)
+table(test$HDLCHREB, chol_test_pred_class)
+
+```
+
+```{r}
+
+test_ordinal <- cbind(test, chol_test_pred_class)
+head(test_ordinal)
+
+```
+
+
+The proportional logit model appear to be very conservative in their predictions. This may be attributed to the parallel assumptions model not being met. Another reason is the relative distribution of the classes. There are significantly more samples in the middle range of cholesterol levels, which means that the estimates are likely biased towards the middle. 
+
+## Assessing the Assumption of Parallel Regression
+
+```{r}
+
+brant_test <- brant(chol_ordinal)
+brant_test
+
+```
+
+```{r}
+
+sf <- function(y){
+  c('Y>=1' = qlogis(mean(y >= 1)),
+    'Y>=2' = qlogis(mean(y >= 2)),
+    'Y>=3' = qlogis(mean(y >= 3)),
+    'Y>=4' = qlogis(mean(y >= 4)),
+    'Y>=5' = qlogis(mean(y >= 5)),
+    'Y>=6' = qlogis(mean(y >= 6)),
+    'Y>=7' = qlogis(mean(y >= 7)),
+    'Y>=8' = qlogis(mean(y >= 8))
+    )
+}
+
+s <- with(data=chol_ordinal, summary(as.numeric(HDLCHREB) ~ . , data=cholesterol_no_na, fun=sf))
+s
+```
+
+```{r}
+
+# BMISC   |[15.2,23.9)  | 734|Inf |4.185514|2.203294|1.0590388|-0.03815177|-0.90772333|-1.980614|-2.776940
+
+glm(I(as.numeric(HDLCHREB) >= 2) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(HDLCHREB) >= 3) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(HDLCHREB) >= 4) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(HDLCHREB) >= 5) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(HDLCHREB) >= 6) ~ BMISC, family="binomial", data = cholesterol_no_na)
+glm(I(as.numeric(HDLCHREB) >= 7) ~ BMISC, family="binomial", data = cholesterol_no_na)
+
+```
+
+The Brant test does holds, and looking at the table of coefficient classes. In general, the change in slopes are reasonably similar across all different subgroups of each response variable, and follow a similar trend.
+
+Whilst it may be interesting to research further into partial proportional logit models, it seems that in general the parallel regression assumption holds. 
+
+However, since the predictions are quite off, let's try to use partial proportional odds models (ppo).
+
+## Prediction using PPO models 
+
+Let's see if we're able to do any better, which we should be able to but interpreting this PPO model will be key. 
+
+```{r}
+
+cholesterol_no_na$HDLCHREB <- factor(cholesterol_no_na$HDLCHREB, ordered=TRUE)
+
+sample_sub = sample.split(cholesterol_no_na$HDLCHREB, SplitRatio = 0.75)
+train = subset(cholesterol_no_na, sample_sub == TRUE)
+test  = subset(cholesterol_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+ppo_model <- vglm(HDLCHREB~., data=train, family=cumulative(parallel=FALSE~AGEC))
+
+#ppo_model <- vglm(HDLCHREB~., data=train, family=cumulative(parallel=TRUE))
+ppo_model
+
+```
+
+```{r}
+
+ppo_test <- predict(ppo_model, test, type="response")
+
+# prob_threshold <- 0.5
+# ppo_test <- ifelse(ppo_test > prob_threshold, "1", "0")
+df_len <- dim(ppo_test)[1]
+
+ppo_test <- ppo_test*100
+ppo_test[1:3, 1:6]
+
+pro_test_class <- max.col(ppo_test[1:df_len, ])
+pro_test_class
+
+table(test$HDLCHREB, pro_test_class)
+
+(rf_test_results[1] + rf_test_results[10] + rf_test_results[19])/(sum(rf_test_results))*100
+
+```
+
+
+```{r}
+
+summary(ppo_model)
+
+```
+
+## Visualising Variables 
+
+Due to the poor results, we want to check whether the variables are differentiable individually. If they are not, then this means none of the variables independently are huge influencers of LDL cholesterol prediction, and we turn to multi-dimensional methods such as PCA to see whether the data has good variance and can be separated.
+
+### Density Plots
+
+```{r}
+
+df <- cholesterol_no_na
+
+density_bmi <- ggplot(df, aes(x = df$BMISC, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$BMISC, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("BMISC")
+
+density_age <- ggplot(df, aes(x = df$AGEC, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$AGEC, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("AGEC")
+
+density_fat <- ggplot(df, aes(x = df$FATT1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$FATT1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("FATT1")
+
+density_sugar <- ggplot(df, aes(x = df$SUGART1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SUGART1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SUGART1")
+
+density_fat_precent <- ggplot(df, aes(x = df$FATPER1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$FATPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("FATPER1")
+
+density_linoleic <- ggplot(df, aes(x = df$LAPER1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$LAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("LAPER1")
+
+density_alpha_linoleic <- ggplot(cholesterol_no_na, aes(x = cholesterol_no_na$ALAPER1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(cholesterol_no_na$ALAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("ALAPER1")
+
+density_carbo_percent <- ggplot(df, aes(x = df$CHOPER1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$CHOPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("CHOPER1")
+
+density_sat_percent <- ggplot(df, aes(x = df$SATPER1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SATPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SATPER1")
+
+density_trans_fat_percent <- ggplot(df, aes(x = df$TRANPER1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$TRANPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("TRANPER1")
+
+density_mono_fat_percent <- ggplot(df, aes(x = df$MONOPER1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$MONOPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("MONOPER1")
+
+density_poly_fat_percent <- ggplot(df, aes(x = df$POLYPER1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$POLYPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("POLYPER1")
+
+density_systol <- ggplot(df, aes(x = cholesterol_no_na$SYSTOL, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SYSTOL, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SYSTOL")
+
+density_niacin <- ggplot(df, aes(x = df$B3T1, fill = HDLCHREB)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("1", "2", "3", "4", "5", "6")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$B3T1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("B3T1")
+
+#grid.arrange(density_bmi, density_age, density_fat, 
+#             density_sugar, density_fat_precent, density_linoleic, 
+#             density_alpha_linoleic, density_carbo_percent, density_sat_percent,
+#             density_trans_fat_percent, density_mono_fat_percent, density_poly_fat_percent,
+#             density_systol, density_niacin,
+#             nrow = 5, ncol = 3)
+
+density_bmi
+density_age
+density_fat 
+density_sugar
+density_fat_precent
+density_linoleic 
+density_alpha_linoleic
+density_carbo_percent
+density_sat_percent
+density_trans_fat_percent
+density_mono_fat_percent
+density_poly_fat_percent
+density_systol
+density_niacin
+
+```
