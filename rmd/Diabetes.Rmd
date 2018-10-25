@@ -1437,3 +1437,42 @@ print(paste("F1 score: ", F1_Score(test_diabetes$DIABBC, diabetes_orig_test_pred
 ```
 
 The GLMs for SMOTE produce a lower Type II error but comparatively the Type I error is significantly higher compared to the other models. The trade-off seems to be consistent with the Random Forests model too. Overall, I think the SMOTE method is a better method for increasing minority class sample sizes for modelling. 
+
+```{r}
+
+probs_tuning <- seq(0.05, 0.95, by=0.05)
+
+length(probs_tuning)
+
+accuracy <- c()
+fpr <- c()
+fnr <- c()
+f1 <- c()
+
+for (i in 1:length(probs_tuning) ){
+  
+    test_tuning_logit <- predict(logistic_regression, newdata=test_diabetes, type='response')
+    test_tuning_logit <- ifelse(test_tuning_logit > probs_tuning[i], 1, 0)
+    
+    table_results <- table(test_diabetes$DIABBC, test_tuning_logit)
+    
+    print(paste("Probability threshold: ", probs_tuning[i]))
+    print(table_results)
+    
+    accuracy[i] <- (table_results[1] + table_results[4])/sum(table_results)
+    fpr[i] <- table_results[3]/(table_results[1] + table_results[3])
+    fnr[i] <- table_results[2]/(table_results[2] + table_results[4])
+    #f1[i] <- F1_Score(test$CVDMEDST, test_tuning_logit, positive=1) 
+}
+
+```
+
+```{r}
+
+tuning_results <- data.frame(cbind(probs_tuning, accuracy, fpr, fnr, f1))
+tuning_results
+
+ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="red", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %")
+
+```
+
