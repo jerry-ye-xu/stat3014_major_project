@@ -15,12 +15,11 @@ In the oversampling methods, the original data was first partitioned (70/30) int
 
 Lastly, the penalised-SVM with considerably increase in weights for the minority class acheived a more balanced approach, with 33% test samples resulting in a Type II error which is a significant reduction from the other 2 models used. However, this resulted in 25% Type I error, which arguably is a small trade-off if reducing Type II errors is the more important outcome. There was no upsampling done for this method, the original imbalanced dataset was used.  
 
-Further fine-tuning can perhaps increase the overall prediction accuracy. 
+The SMOTE method for random forests produced similar results, but the GLM models were able to produce significantly lower Type II error at the cost of an increase in Type I error. The trade-off is similar, but overall slightly better for the logistic model, with approximately 25% each for both types of errors. 
 
+Further fine-tuning can perhaps increase the overall prediction accuracy.
 
 ## Predicting Diabetes Mellitus
-
-Warning: The glm functions take a while to run. They have been commented out to save time when running the whole file
 
 ```{r, include=FALSE}
 
@@ -38,6 +37,8 @@ library(pscl)
 library(MLmetrics)
 library(ROCR)
 library(caTools) # train_test_split
+
+library(gridExtra) # Grid plotting for ggplot2
 
 # library(rsample)      # data splitting - not available for the most recent version of R
 library(randomForestSRC) # basic RF package
@@ -217,6 +218,7 @@ class_count[1]
 class_count[1]/(class_count[1]+class_count[2])
 
 ```
+
 With a null accuracy of ~94%, it is going to be difficult to use the standard classification algorithms to acheive any improvements in prediction accuracy.
 
 Later on we will attempt to use different methods such as upsampling and penalised-SVM. This may improve our results. 
@@ -238,19 +240,114 @@ V = 10
 
 ```
 
+## Visualising Variables 
+
 ```{r}
 
-density <- ggplot(nutm, aes(x = nutm[variable_name], fill = "r")) +
-geom_density(alpha = 0.5) + geom_vline(xintercept = mean(nutm[variable_name], na.rm=TRUE), linetype="dashed", color="black", size=1) + 
-xlab(variable_name) + 
-scale_fill_discrete(labels=c(variable_name)) + guides(fill=guide_legend(title=NULL)) 
-
-density
+df
 
 ```
 
 
+```{r}
+
+df <- diabetes_no_na
+
+df$DIABBC[1:10]
+
+density_bmi <- ggplot(df, aes(x = df$BMISC, fill = DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$BMISC, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("BMISC")
+
+density_age <- ggplot(df, aes(x = df$AGEC, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$AGEC, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("AGEC")
+
+density_fat <- ggplot(df, aes(x = df$FATT1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$FATT1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("FATT1")
+
+density_sugar <- ggplot(df, aes(x = df$SUGART1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SUGART1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SUGART1")
+
+density_fat_precent <- ggplot(df, aes(x = df$FATPER1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$FATPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("FATPER1")
+
+density_linoleic <- ggplot(df, aes(x = df$LAPER1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$LAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("LAPER1")
+
+density_alpha_linoleic <- ggplot(df, aes(x = df$ALAPER1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$ALAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("ALAPER1")
+
+density_carbo_percent <- ggplot(df, aes(x = df$CHOPER1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$CHOPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("CHOPER1")
+
+density_sat_percent <- ggplot(df, aes(x = df$SATPER1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SATPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SATPER1")
+
+density_trans_fat_percent <- ggplot(df, aes(x = df$TRANPER1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$TRANPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("TRANPER1")
+
+density_mono_fat_percent <- ggplot(df, aes(x = df$MONOPER1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$MONOPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("MONOPER1")
+
+density_poly_fat_percent <- ggplot(df, aes(x = df$POLYPER1, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$POLYPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("POLYPER1")
+
+density_systol <- ggplot(df, aes(x = df$SYSTOL, fill = df$DIABBC)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SYSTOL, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SYSTOL")
+
+grid.arrange(density_bmi, density_age, density_fat, 
+             density_sugar, density_fat_precent, density_linoleic, 
+             density_alpha_linoleic, density_carbo_percent, density_sat_percent,
+             density_trans_fat_percent, density_mono_fat_percent, density_poly_fat_percent,
+             density_systol,
+             nrow = 4, ncol = 4)
+
+```
+
+It seems that SYSTOL, BMI and AGE are the 3 most distinguishable 1-dimensional variables by class. This makes sense, and allows for the models after some tuning to have some form of prediction. 
+
 Now we can try to fit a KNN to test the code. 
+
+
+
 
 ## Exploring Prediction with Baseline models 
 
@@ -383,9 +480,9 @@ F1_Score(test$y, diabetes_test$predictions)
 
 ```
 
-Accuracy is greater than the null accuracy!
+The random forest doesn't make it any better either. So now we need to try a different model, and then afterwards use upsampling. 
 
-However, the issue with this is that there are too many false negatives. Approximately one third of the minority class is classified incorrectly. We can surely improve on this further. 
+We skip the hyperparameter tuning step because random forests is certainly not the right model for this imbalanced dataset.
 
 ```{r, eval=FALSE, include=FALSE}
 
@@ -481,8 +578,6 @@ F1_Score(test$y, diabetes_test$predictions)
 
 ```
 
-It seems like tuning the parameters didn't really help. 
-
 ### GLMs 
 
 ```{r, include=FALSE}
@@ -518,13 +613,18 @@ cv_glm_backward(X, y, V = 10, pen = 2)
 
 ```
 
+
+
+
 ## Dealing with Disproportionate Data
 
-The previous methods did not work so well as the response variable classes are extremely imbalanced. Random forests, despite the slight improvement in accuracy to 97%, still produced too many Type II errors. This may or may not be relevant depending on the problem at hand but in healthcare it may be better to have a predictor that is more conservative and allows more for false positives.
+The previous methods did not work so well as the response variable classes are extremely imbalanced. The forest models simply predicted one class, whilst KNN and the like were unable to distinguish between the minority class. 
 
 Now we consider a few methods to handle such imbalanced classes, including upsampling (and SMOTE upsampling) and penalised-SVM.
 
-#### 1) Upsampling
+
+
+### 1) Upsampling
 
 We generate synthetic data by bootstrapping the minority-class samples that we have observed.
 
@@ -641,8 +741,6 @@ plot(k_neighbours, cv_errors, type="l", xlab="value of k", ylab="cross-validatio
 
 ```
 
-### LDA and QDA
-
 ```{r}
 
 X = data.frame(scale(diabetes_upsample[, 2:df_len]))
@@ -698,7 +796,7 @@ intersect(as.numeric(rownames(test)), as.numeric(rownames(train)) )
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 table(diabetes_no_na$DIABBC)
 
@@ -748,7 +846,7 @@ diabetes_train$variable.importance %>%
 
 ```
 
-Despite not finding an improvement in overall accuracy, we were able to trade false positives for a large decrease in false negatives. It is safe to say that the model used will really depend on the context, as Type I and II errors are interelated. 
+It seems that upsampling does not provide any meaningful improvements in prediction. There are still far too many Type II errors when using the original test set. 
 
 ```{r}
 
@@ -782,7 +880,7 @@ roc
 
 #### Tuning Hyperparameters
 
-```{r, eval=FALSE, include=TRUE}
+```{r, eval=FALSE, include=FALSE}
 
 hyper_grid_2 <- expand.grid(
   mtry       = seq(1, 7, by = 2),
@@ -820,7 +918,7 @@ hyper_grid_2 %>%
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 tuning_results <- hyper_grid_2[order(hyper_grid_2$CLASS_ACCURACY, decreasing=TRUE), ]
 tuning_results
@@ -828,7 +926,7 @@ optimal_parameters_idx <-rownames(tuning_results)[1]
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 intersect(as.numeric(rownames(test)), as.numeric(rownames(train)) )
 
@@ -852,10 +950,11 @@ diabetes_train <- ranger(
 diabetes_train$variable.importance
 diabetes_train$prediction.error
 
-print("Predict using the test set")
-colnames(test)[1] <- "y"
-diabetes_test <- predict(diabetes_train, data = test)
-CrossTable(test$y, diabetes_test$predictions)
+# This will not work as many of the samples have been replicated. So of course, this will be much more accurate. 
+    #print("Predict using the test set")
+    #colnames(test)[1] <- "y"
+    #diabetes_test <- predict(diabetes_train, data = test)
+    #CrossTable(test$y, diabetes_test$predictions)
 
 print("Predict using the ORIGINAL TEST SET")
 # need to rename columns to y
@@ -866,22 +965,15 @@ CrossTable(test_diabetes$y, diabetes_true_test$predictions)
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
-test_diabetes
-
-```
-
-
-```{r}
-
-table_test      <- table(test$y, diabetes_test$predictions)
+#table_test      <- table(test$y, diabetes_test$predictions)
 table_test_orig <- table(test_diabetes$y, diabetes_true_test$predictions)
 
-F1_Score(test$y, diabetes_test$predictions)
+#F1_Score(test$y, diabetes_test$predictions)
 F1_Score(test_diabetes$y, diabetes_true_test$predictions)
 
-(table_test[1] + table_test[4])/sum(table_test)*100
+#(table_test[1] + table_test[4])/sum(table_test)*100
 (table_test_orig[1] + table_test_orig[4])/sum(table_test_orig)*100
 
 ```
@@ -902,10 +994,8 @@ The coefficients of the variables are consistent with the random forest.
 
 ```{r}
 
-
 logistic_regression = glm(y~., family=binomial(link='logit'), data=X)
 summary(logistic_regression)
-
 
 anova(logistic_regression)
 pR2(logistic_regression)
@@ -1056,7 +1146,8 @@ F1_Score(test_diabetes$DIABBC, test_pred)
 
 #### Hyperparameter Tuning
 
-```{r eval=FALSE, include=FALSE}
+```{r eval=FALSE, include=TRUE}
+# Not evaluated
 
 svm_model_tuned <- tune.svm(DIABBC~., data = train_diabetes, kernel="polynomial", 
                  gamma=c(0.1,0.5,1,2), 
@@ -1070,16 +1161,18 @@ summary(svm_model_tuned)
 
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 #svm_model_tuned$best.parameters
 #svm_model_tuned$nparcomb
+
+class_weights = c(1, 15)
 
 svm_model <- svm(DIABBC ~ ., data=train_diabetes, kernel="polynomial",
                  coef0=1,
                  gamma=2,
                  cost=0.1,
-                 class.weights=c("0"=1, "1"=10),
+                 class.weights=c("0"=class_weights[1], "1"=class_weights[2]),
                  tolerance = 0.01
                  )
 
@@ -1099,11 +1192,12 @@ F1_Score(test_diabetes$DIABBC, test_pred)
 
 ```
 
-Comparatively, the penalised-SVM is did not score as highly in the overall accuracy especially compared to the Random Forest model. However, by weighting the classes differently, we were able to reduce the number of false negatives, despite the overall accuracy being 91%, slightly lower than the null accuracy.
-
-All this analysis suggests that there are different methods of finetuning the FPR and FNR depending on your problem and these models all have their strengths and weaknesses. 
+Using the penalised-SVM, we were able to reduce the number of false negatives by weighting the classes differently. The analysis suggests that there are different methods of finetuning the FPR and FNR depending on your problem and these models all have their strengths and weaknesses. 
 
 We wrap up this analysis with a revisit to upsampling, but this time we will investigate the __synthetic minority oversampling technique__ (SMOTE)
+
+
+
 
 #### 4) SMOTE Upsampling
 
@@ -1206,6 +1300,7 @@ Now that we have our synthetic data, we can use it on various models to assess t
 
 
 ```{r}
+
 X <- as.matrix(diabetes_upsample[, 2:df_len])
 y <- diabetes_upsample$DIABBC
 
@@ -1290,4 +1385,55 @@ F1_Score(test_diabetes$y, diabetes_true_test$predictions)
 
 ```
 
-The SMOTE method yielded a much worse FNR, and thus basic oversampling methods are more effective for prediction.  
+The SMOTE method yielded a slightly better FNR compared to the same random forest models for basic upsampling. 
+
+However, with GLMs, the results were much better initially. Hence, we need want to compare with a GLM model using SMOTE and see whether there is any improvement. 
+
+```{r}
+
+sample_sub = sample.split(diabetes_upsample$DIABBC, SplitRatio = .7)
+train = subset(diabetes_upsample, sample_sub == TRUE)
+test  = subset(diabetes_upsample, sample_sub == FALSE)
+table(train$DIABBC)
+table(test$DIABBC)
+head(train)
+head(test)
+
+# Tune this probability threshold
+prob_threshold = 0.45
+
+logistic_regression = glm(DIABBC~., family=binomial(link='logit'), data=train)
+summary(logistic_regression)
+
+diabetes_test_pred <- predict(logistic_regression, newdata=test, type='response')
+diabetes_test_pred <- ifelse(diabetes_test_pred > prob_threshold, 1, 0)
+
+CrossTable(test$DIABBC, diabetes_test_pred)
+
+misClasificError <- mean(diabetes_test_pred != test$DIABBC)
+
+print(paste("Size of train:", dim(train)[1]))
+print(paste("Size of test:", dim(test)[1]))
+
+print(paste('Accuracy: ',1-misClasificError))
+print(paste("F1 score: ", F1_Score(test$DIABBC, diabetes_test_pred, positive=0)))
+
+
+print("THE ORIGINAL TEST SET")
+colnames(test_diabetes)[1] <- "DIABBC"
+diabetes_orig_test_pred <- predict(logistic_regression, newdata=test_diabetes, type='response')
+diabetes_orig_test_pred <- ifelse(diabetes_orig_test_pred > prob_threshold, 1, 0)
+
+CrossTable(test_diabetes$DIABBC, diabetes_orig_test_pred)
+
+misClasificError <- mean(diabetes_test_pred != test$DIABBC)
+
+print(paste("Size of train:", dim(train)[1]))
+print(paste("Size of test:", dim(test_diabetes)[1]))
+
+print(paste('Accuracy: ',1-misClasificError))
+print(paste("F1 score: ", F1_Score(test_diabetes$DIABBC, diabetes_orig_test_pred, positive=0)))
+
+```
+
+The GLMs for SMOTE produce a lower Type II error but comparatively the Type I error is significantly higher compared to the other models. The trade-off seems to be consistent with the Random Forests model too. Overall, I think the SMOTE method is a better method for increasing minority class sample sizes for modelling. 
