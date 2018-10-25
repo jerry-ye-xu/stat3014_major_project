@@ -1,5 +1,5 @@
 ---
-title: "data_preprocessing"
+title: "Data_preprocessing"
 author: "Jerry Xu"
 date: "11 October 2018"
 output:
@@ -176,32 +176,3 @@ ggplot(pmv_transpose, aes(x=column_idx, y=(percent_missing*100), fill="purple"))
 ```
 
 Looking at this, we may have to omit some variables depending on which response variables we are analying.
-
-
-
-```{r}
-
-rf_oob_comp <- randomForest(
-  formula = y ~ .,
-  data    = train,
-  xtest   = test$y,
-  ytest   = test[, 2:df_len]
-)
-
-# extract OOB & validation errors
-oob <- sqrt(rf_oob_comp$mse)
-validation <- sqrt(rf_oob_comp$test$mse)
-
-# compare error rates
-tibble::tibble(
-  `Out of Bag Error` = oob,
-  `Test error` = validation,
-  ntrees = 1:rf_oob_comp$ntree
-) %>%
-  gather(Metric, RMSE, -ntrees) %>%
-  ggplot(aes(ntrees, RMSE, color = Metric)) +
-  geom_line() +
-  scale_y_continuous(labels = scales::dollar) +
-  xlab("Number of trees")
-
-```
