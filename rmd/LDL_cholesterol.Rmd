@@ -195,7 +195,7 @@ table(cholesterol_no_na$LDLNTR)
 
 ```
 
-We check the null accuracy, which is 64%. I am certain we can build a model to make substantial impovements on this baseline accuracy. 
+We check the null accuracy, which is 64%. 
 
 Setting variables:
 
@@ -455,7 +455,7 @@ cholesterol_no_na
 
 ```{r}
 
-class_weights = c(1, 2.25)
+class_weights = c(1, 1.75)
 
 #cholesterol_no_na <- mutate(cholesterol_no_na, LDLNTR = ifelse(LDLNTR == "1", 1, 0))
 
@@ -538,10 +538,10 @@ density_linoleic <- ggplot(df, aes(x = df$LAPER1, fill = LDLNTR)) +
       geom_vline(xintercept = mean(df$LAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
         xlab("LAPER1")
 
-density_alpha_linoleic <- ggplot(cholesterol_no_na, aes(x = cholesterol_no_na$ALAPER1, fill = LDLNTR)) +
+density_alpha_linoleic <- ggplot(df, aes(x = df$ALAPER1, fill = LDLNTR)) +
   geom_density(alpha = 0.5) +
     scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
-      geom_vline(xintercept = mean(cholesterol_no_na$ALAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+      geom_vline(xintercept = mean(df$ALAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
         xlab("ALAPER1")
 
 density_carbo_percent <- ggplot(df, aes(x = df$CHOPER1, fill = LDLNTR)) +
@@ -574,7 +574,7 @@ density_poly_fat_percent <- ggplot(df, aes(x = df$POLYPER1, fill = LDLNTR)) +
       geom_vline(xintercept = mean(df$POLYPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
         xlab("POLYPER1")
 
-density_systol <- ggplot(df, aes(x = cholesterol_no_na$SYSTOL, fill = LDLNTR)) +
+density_systol <- ggplot(df, aes(x = df$SYSTOL, fill = LDLNTR)) +
   geom_density(alpha = 0.5) +
     scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
       geom_vline(xintercept = mean(df$SYSTOL, na.rm=TRUE), linetype="dashed", color="black", size=1) +
