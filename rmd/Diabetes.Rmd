@@ -2,7 +2,9 @@
 title: "Diabetes.Rmd"
 author: "Jerry Xu"
 date: "16 October 2018"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ## Summary
@@ -148,6 +150,8 @@ We use to model the "DIABBC" variable. It contains 3 outcomes:
 
 ```{r}
 
+nutm = filter(nutm, AGEC > 17)
+
 table(nutm["DIABBC"])
 
 ```
@@ -172,16 +176,17 @@ Now we need to select our feature variables.
 
 diabetes_response = c("DIABBC")
 diabetes_variables = c("BMISC", "AGEC", 
-                       # "EXLWTBC", 
+                       "EXLWTBC", 
                        # "SF2SA1QN", "INCDEC",
-                       # "HSUGBC", 
+                       "SUGPER1",
+                       #"HSUGBC", 
                        "FATT1", "SUGART1", 
                        "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", 
                        "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
                        "ADTOTSE",
                        # "SEX"
                        # "SMKSTAT", 
-                       "SYSTOL" 
+                       "SYSTOL"
                        # "FASTSTAD", 
                        # "HDLCHREB", "LDLNTR", "LDLRESB", 
                        #"B3T1"
@@ -596,7 +601,7 @@ logistic_regression = glm(y~., family=binomial, data=X)
 
 summary(logistic_regression)
 anova(logistic_regression)
-pR2(logistic_regression)
+#pR2(logistic_regression)
 
 cv_glm(X, y, V = 10)
 
@@ -1440,7 +1445,7 @@ The GLMs for SMOTE produce a lower Type II error but comparatively the Type I er
 
 ```{r}
 
-probs_tuning <- seq(0.05, 0.95, by=0.05)
+probs_tuning <- seq(0.05, 0.95, by=0.01)
 
 length(probs_tuning)
 
@@ -1456,8 +1461,8 @@ for (i in 1:length(probs_tuning) ){
     
     table_results <- table(test_diabetes$DIABBC, test_tuning_logit)
     
-    print(paste("Probability threshold: ", probs_tuning[i]))
-    print(table_results)
+    #print(paste("Probability threshold: ", probs_tuning[i]))
+    #print(table_results)
     
     accuracy[i] <- (table_results[1] + table_results[4])/sum(table_results)
     fpr[i] <- table_results[3]/(table_results[1] + table_results[3])
@@ -1469,10 +1474,57 @@ for (i in 1:length(probs_tuning) ){
 
 ```{r}
 
-tuning_results <- data.frame(cbind(probs_tuning, accuracy, fpr, fnr, f1))
+tuning_results <- data.frame(cbind(probs_tuning, "accuracy" = accuracy*100, "FPR" = fpr*100, "FNR" = fnr*100, "F1" = f1))
 tuning_results
 
 ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="red", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %")
+
+```
+
+```{r}
+
+sample_sub = sample.split(diabetes_upsample$DIABBC, SplitRatio = .7)
+train = subset(diabetes_upsample, sample_sub == TRUE)
+test  = subset(diabetes_upsample, sample_sub == FALSE)
+table(train$DIABBC)
+table(test$DIABBC)
+head(train)
+head(test)
+
+# Tune this probability threshold
+prob_threshold = 0.43
+
+logistic_regression = glm(DIABBC~., family=binomial(link='logit'), data=train)
+summary(logistic_regression)
+
+diabetes_test_pred <- predict(logistic_regression, newdata=test, type='response')
+diabetes_test_pred <- ifelse(diabetes_test_pred > prob_threshold, 1, 0)
+
+CrossTable(test$DIABBC, diabetes_test_pred)
+
+misClasificError <- mean(diabetes_test_pred != test$DIABBC)
+
+print(paste("Size of train:", dim(train)[1]))
+print(paste("Size of test:", dim(test)[1]))
+
+print(paste('Accuracy: ',1-misClasificError))
+print(paste("F1 score: ", F1_Score(test$DIABBC, diabetes_test_pred, positive=0)))
+
+
+print("THE ORIGINAL TEST SET")
+colnames(test_diabetes)[1] <- "DIABBC"
+diabetes_orig_test_pred <- predict(logistic_regression, newdata=test_diabetes, type='response')
+diabetes_orig_test_pred <- ifelse(diabetes_orig_test_pred > prob_threshold, 1, 0)
+
+CrossTable(test_diabetes$DIABBC, diabetes_orig_test_pred)
+
+misClasificError <- mean(diabetes_test_pred != test$DIABBC)
+
+print(paste("Size of train:", dim(train)[1]))
+print(paste("Size of test:", dim(test_diabetes)[1]))
+
+print(paste('Accuracy: ',1-misClasificError))
+print(paste("F1 score: ", F1_Score(test_diabetes$DIABBC, diabetes_orig_test_pred, positive=0)))
 
 ```
 

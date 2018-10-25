@@ -118,6 +118,9 @@ for (i in 1:length(categoricalList)) {
 }
 
 head(nutm)
+
+nutm = filter(nutm, AGEC > 17)
+
 ```
 
 ```{r}
