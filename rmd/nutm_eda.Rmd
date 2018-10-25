@@ -554,7 +554,7 @@ I also explored a few outlier tests that could potentially be used, but most wer
 
 Amongst the detailed nutrition information, there are a few important features we should have a look at.
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 main_indicators = c("BMISC", 
                     "PHDKGWBC", 
@@ -741,8 +741,6 @@ The plot suggests that the number of clusters should be similar.
 
 
 ## Principal Component Analysis
-
-
 
 ```{r}
 
