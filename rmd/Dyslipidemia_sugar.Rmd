@@ -1,0 +1,870 @@
+---
+title: "Dyslipidemia using sugars"
+author: "Jerry Xu"
+date: "25 October 2018"
+output: html_document
+---
+
+## Summary
+
+
+
+
+## Predicting Abnormal Levels of Dyslipidemia
+
+```{r, include=FALSE}
+
+# library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(broom) # for tidy()
+library(ggplot2)
+library(pROC)
+library(plotROC)
+library(gmodels) #CrossTable
+library(MLmetrics)
+library(ROCR)
+
+library(e1071) # SVM
+
+library(pscl)
+library(caTools) # train_test_split
+
+library(gridExtra) # Grid plotting for ggplot2
+library(factoextra)
+library(kmed)
+library(cluster)
+library(outliers)
+library(ggbiplot)
+
+library(tidyverse)
+
+# library(rsample)      # data splitting - not available for the most recent version of R
+library(randomForestSRC) # basic RF package
+library(ranger)
+
+source("./functions/cv_knn.R")
+source("./functions/cv_da.R")
+source("./functions/cv_rpart.R")
+source("./functions/cv_glm.R")
+source("./functions/cv_glm_backward.R")
+
+```
+
+Before doing anything, we'll set the seed to ensure reproducibility.
+
+```{r}
+
+set.seed(15)
+
+```
+
+## Standardised Preprocessing
+
+```{r}
+
+feature_variables = c("BMISC", "AGEC", "PHDKGWBC", "EXLWTBC", "SF2SA1QN", "INCDEC", "HSUGBC", "FATT1", "SUGART1", 
+                      "PREVAT1", "PROVAT1", "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", "SUGPER1", "SATPER1", 
+                      "TRANPER1", "MONOPER1", "POLYPER1", "ADTOTSE", "SEX", "SMKSTAT", "SYSTOL", "FASTSTAD", 
+                      "HDLCHREB", "LDLNTR", "LDLRESB", "B3T1",
+                      
+                      "CHOWSAT1", "STARCHT1", "FIBRET1", "FIBRPER1", "ALCT1", "ALCPER1", "CHOPER1", 
+                      "PEFRESD1", "PEADDSD1")
+
+# BMR, SLPTIME
+
+response_variables = c("CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST")
+
+all_variables = c(feature_variables, response_variables)
+
+nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
+nutm = nutm_orig[all_variables]
+
+```
+
+We'll need to reprocess some of the variables as factors. 
+
+```{r}
+categoricalList <- c()
+
+categoricalList[ 1 ] <- FALSE #  BMISC 
+categoricalList[ 2 ] <- FALSE #  AGEC 
+
+categoricalList[ 3 ] <- FALSE #  PHDKGWBC 
+
+categoricalList[ 4 ] <- FALSE #  EXLWTBC 
+
+categoricalList[ 5 ] <- TRUE #  SF2SA1QN 
+categoricalList[ 6 ] <- TRUE #  INCDEC 
+
+categoricalList[ 7 ] <- TRUE #  HSUGBC 
+
+categoricalList[ 8 ] <- FALSE #  FATT1 
+
+categoricalList[ 9 ] <- FALSE #  SUGART1 
+
+categoricalList[ 10 ] <- FALSE #  PREVAT1 
+categoricalList[ 11 ] <- FALSE #  PROVAT1 
+
+categoricalList[ 12 ] <- FALSE #  FATPER1 
+categoricalList[ 13 ] <- FALSE #  LAPER1 
+categoricalList[ 14 ] <- FALSE #  ALAPER1 
+categoricalList[ 15 ] <- FALSE #  CHOPER1 
+categoricalList[ 16 ] <- FALSE #  SUGPER1 
+
+categoricalList[ 17 ] <- FALSE #  SATPER1 
+categoricalList[ 18 ] <- FALSE #  TRANPER1 
+
+categoricalList[ 19 ] <- FALSE #  MONOPER1 
+categoricalList[ 20 ] <- FALSE #  POLYPER1 
+categoricalList[ 21 ] <- FALSE #  ADTOTSE 
+
+categoricalList[ 22 ] <- TRUE #  SEX 
+
+categoricalList[ 23 ] <- TRUE #  SMKSTAT 
+categoricalList[ 24 ] <- FALSE #  SYSTOL 
+
+categoricalList[ 25 ] <- TRUE #  FASTSTAD 
+
+categoricalList[ 26 ] <- TRUE #  HDLCHREB 
+categoricalList[ 27 ] <- TRUE #  LDLNTR 
+categoricalList[ 28 ] <- TRUE #  LDLRESB 
+
+categoricalList[ 29 ] <- FALSE #  B3T1
+
+categoricalList[ 30 ] <- TRUE #  CHOLNTR 
+categoricalList[ 31 ] <- TRUE #  HDLCHREB 
+categoricalList[ 32 ] <- TRUE #  DIABBC 
+categoricalList[ 33 ] <- TRUE #  HCHOLBC 
+categoricalList[ 34 ] <- TRUE #  HYPBC 
+categoricalList[ 35 ] <- TRUE #  CVDMEDST 
+
+# "CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST"
+
+for (i in 1:length(categoricalList)) {
+  if (categoricalList[ i ]) {
+      nutm[,i] <- as.factor(nutm[ ,i])
+  }
+}
+
+head(nutm)
+```
+
+#### Data Preprocessing Stage
+
+Let's firstly check how much data we have.
+
+```{r}
+
+nutm = filter(nutm, AGEC > 17)
+
+sum(is.na(nutm["CVDMEDST"]))
+table(nutm["CVDMEDST"])
+
+```
+
+We have a selection of variables that were filtered collectively by the group. Depending on the response variable. We shall subset these variables even further. 
+
+```{r}
+
+dyslipidemia_response = c("CVDMEDST")
+dyslipidemia_variables = c("BMISC", "AGEC", "EXLWTBC", 
+                       # "SF2SA1QN", "INCDEC",
+                       # "HSUGBC", 
+                       #"FATT1", 
+                       "SUGART1", 
+                       #"FATPER1", "LAPER1", "ALAPER1", 
+                       "CHOPER1", 
+                       #"SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       "ADTOTSE",
+                       # "SEX"
+                       # "SMKSTAT", 
+                       "SYSTOL", 
+                       "B3T1",
+                       # "FASTSTAD", 
+                       #"HDLCHREB", 
+                       # "LDLNTR", 
+                       #"LDLRESB"
+                      "CHOWSAT1", 
+                      "STARCHT1", 
+                      # "FIBRET1", 
+                      "FIBRPER1", 
+                      #"ALCT1", 
+                      "ALCPER1", 
+                      #"CHOPER1", 
+                      "PEFRESD1", "PEADDSD1"
+
+                       )
+
+dyslipidemia = nutm[c(dyslipidemia_response, dyslipidemia_variables)]
+head(dyslipidemia)
+dyslipidemia <- mutate(dyslipidemia, CVDMEDST = ifelse(CVDMEDST == 4, "0", "1"))
+dyslipidemia$CVDMEDST <- as.factor(dyslipidemia$CVDMEDST)
+# dyslipidemia$HDLCHREB <- as.numeric(dyslipidemia$HDLCHREB)
+# dyslipidemia$LDLNTR <- as.numeric(dyslipidemia$LDLNTR)
+# dyslipidemia$LDLRESB <- as.numeric(dyslipidemia$LDLRESB)
+head(dyslipidemia)
+
+```
+
+We simply remove all rows were the null values exist. This does not cause us any major issues in both the size of the observed data and distortion of the proportion of the 2 classes.
+
+```{r}
+
+dyslipidemia_no_na <- dyslipidemia[complete.cases(dyslipidemia), ]
+dim(dyslipidemia_no_na)
+
+table_values <- table(dyslipidemia_no_na$CVDMEDST)
+table_values
+table_values[2]/sum(table_values)
+
+```
+
+We check the null accuracy, which is 69%. 
+
+Setting variables:
+
+```{r}
+
+df_rows <- dim(dyslipidemia_no_na)[1]
+
+rownames(dyslipidemia_no_na) <- c(seq(1:df_rows))
+
+df_len = dim(dyslipidemia_no_na)[2] # no. of columns in Dataframe 
+df_len
+
+neighbours = 3
+V = 10 # cross-validation splits. 
+
+```
+
+Now we can try to fit a KNN to test the code. 
+
+## Exploring Prediction with Baseline models 
+
+### K-nearest Neighbours
+
+```{r}
+
+X = data.frame(scale(dyslipidemia_no_na[, 2:(df_len-2)]))
+y = dyslipidemia_no_na$CVDMEDST
+cv_knn(X, y, k=neighbours, V=10, seed=1)
+
+k_neighbours = seq(1,21,by=2)
+cv_errors = c()
+for (i in 1:length(k_neighbours)) {
+  cv_errors[i] = cv_knn(X, as.factor(y),k=k_neighbours[i],V,seed=1)
+}
+plot(k_neighbours, cv_errors, type="l", xlab="value of k", ylab="cross-validation error", cex.lab=1.5,
+    main="CV errors for K-nearest neighbours", cex.main=2, ylim=c(0.2,0.60))
+
+```
+
+Removing the HDL and LDL leads not much to be desired. 
+
+
+We quickly calculate the ROC curve here for knn here, after splitting the samples 70/30.
+
+```{r}
+
+sample_sub = sample.split(dyslipidemia_no_na$CVDMEDST, SplitRatio = 0.7)
+train = subset(dyslipidemia_no_na, sample_sub == TRUE)
+test  = subset(dyslipidemia_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+train_X <- train[, 2:df_len]
+test_X <-   test[, 2:df_len]
+
+knn_split_test <- knn(train=train_X, test=test_X, cl=train$CVDMEDST , k = 5)
+CrossTable(test$CVDMEDST, knn_split_test)
+
+roc_knn <- roc(as.numeric(test$CVDMEDST), as.numeric(knn_split_test))
+roc_knn
+plot(roc_knn)
+```
+
+```{r}
+
+F1_Score(test$CVDMEDST, knn_split_test, positive = 1)
+
+```
+
+Let's try both the DA and CART algorithms as a sanity check. 
+
+### LDA and QDA
+
+```{r}
+
+X = data.frame(scale(dyslipidemia_no_na[, 2:15]))
+y = dyslipidemia_no_na$CVDMEDST
+
+cv_da(X = X, y = y, V = 10, method = "lda", seed = 1)
+cv_da(X = X, y = y, V = 10, method = "qda", seed = 1)
+
+```
+
+### CART
+
+```{r}
+
+#dyslipidemia_no_na$LDLRESB <- as.numeric(dyslipidemia_no_na$LDLRESB)
+#dyslipidemia_no_na$HDLCHREB <- as.numeric(dyslipidemia_no_na$HDLCHREB)
+
+X <- as.matrix(dyslipidemia_no_na[, 2:(df_len)])
+y <- dyslipidemia_no_na$CVDMEDST
+
+dyslipidemia_no_na_cart <- data.frame(y, X)
+head(dyslipidemia_no_na_cart)
+
+res_rpart <- rpart(y ~ X, data = dyslipidemia_no_na_cart, method="class")
+rpart.plot(res_rpart, type=1, extra=1, main="CART for dyslipidemia, non_zeroes")
+
+summary(res_rpart)
+
+print("The cross-validation accuracy is:")
+cv_rpart(X, y, V, seed=1)
+
+```
+
+Both the KNN and CART algorithms fail to perform. We now turn Random Forests, which partitions the dataset in both samples and features - increasing bias slightly in compensation to a considerable reduction in variance. 
+
+#### Improved Prediction with Random Forests
+
+```{r}
+
+X = data.frame(dyslipidemia_no_na[, 2:df_len])
+y = dyslipidemia_no_na$CVDMEDST
+
+dyslipidemia_no_na_cart <- data.frame(y, X)
+
+sample_sub = sample.split(dyslipidemia_no_na$CVDMEDST, SplitRatio = 0.7)
+train_dyslip = subset(dyslipidemia_no_na, sample_sub == TRUE)
+test_dyslip  = subset(dyslipidemia_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+```
+
+```{r}
+
+train <- ranger(
+  formula = CVDMEDST ~ .,
+  data    = train_dyslip,
+  importance = "impurity"
+  # xtest   = test$y,
+  # ytest   = test[, 2:df_len]
+)
+
+train$variable.importance
+train$prediction.error
+
+print("Predict using the test set")
+test_predictions <- predict(train, data = test_dyslip)
+
+CrossTable(test_dyslip$CVDMEDST, test_predictions$predictions)
+
+train$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  ggplot(aes(reorder(names, x), x)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Top 25 important variables")
+
+```
+
+Based on the confusion matrix, the accuracy is 
+
+```{r}
+
+table_results <- table(test_dyslip$CVDMEDST, test_predictions$predictions)
+
+(table_results[1] + table_results[4])/(sum(table_results))*100
+
+```
+
+```{r}
+
+F1_Score(test_dyslip$CVDMEDST, test_predictions$predictions, positive = 1)
+
+```
+
+
+I want to check the parameters for the RF model
+
+```{r}
+
+summary(train)
+
+```
+
+
+This is a significant improvement in prediction accuracy compared to the first 2 algorithms we used. The distribution of type I and II errors are also acceptable, but not surprisingly we have relatively more false negatives.  
+
+```{r}
+
+roc <- roc(response=as.numeric(test_predictions$predictions), predictor=as.numeric(test_dyslip$CVDMEDST))
+auc <- auc(response=as.numeric(test_dyslip$CVDMEDST), predictor=as.numeric(test_predictions$predictions))
+plot(roc)
+
+roc
+auc
+
+```
+
+__Tuning the Hyperparameters__
+
+```{r, eval=TRUE, include=FALSE}
+
+hyper_grid_2 <- expand.grid(
+  mtry       = seq(1, 7, by = 2),
+  node_size  = seq(1, 5, by = 2),
+  sample_size = c(.55, .632, .70),
+  CLASS_ACCURACY  = 0
+)
+
+# perform grid search
+for(i in 1:nrow(hyper_grid_2)) {
+  
+  # train model
+  model <- ranger(
+    formula         = CVDMEDST ~ ., 
+    data            = train_dyslip, 
+    write.forest    = TRUE,
+    importance      = "impurity",
+    num.trees       = 500,
+    mtry            = hyper_grid_2$mtry[i],
+    min.node.size   = hyper_grid_2$node_size[i],
+    sample.fraction = hyper_grid_2$sample_size[i],
+    seed            = 123
+  )
+  
+  tune_test <- predict(model, data = test_dyslip)
+  c_m <- table(test_dyslip$CVDMEDST, tune_test$predictions)[1:4]
+  # add OOB error to grid
+  classification_accuracy_for_test_set <- (c_m[1]+c_m[4])/sum(c_m)
+  
+  hyper_grid_2$CLASS_ACCURACY[i] <- classification_accuracy_for_test_set
+}
+
+hyper_grid_2 %>% 
+  dplyr::arrange(CLASS_ACCURACY) %>%
+  head(10)
+
+```
+
+```{r, eval=TRUE, include=TRUE}
+
+tuning_results <- hyper_grid_2[order(hyper_grid_2$CLASS_ACCURACY, decreasing=TRUE), ]
+head(tuning_results)
+optimal_parameters_idx <-rownames(tuning_results)[1]
+
+hyper_grid_2[order(-hyper_grid_2$CLASS_ACCURACY), ]
+             
+```
+
+```{r, eval=TRUE, include=TRUE}
+
+sample_sub = sample.split(dyslipidemia_no_na_cart$y, SplitRatio = 0.7)
+train = subset(dyslipidemia_no_na_cart, sample_sub == TRUE)
+test  = subset(dyslipidemia_no_na_cart, sample_sub == FALSE)
+head(train)
+head(test)
+
+
+tuned_rf_train <- ranger(
+  formula         = CVDMEDST ~ .,
+  data            = train_dyslip,
+  importance      = "impurity",
+  num.trees       = 500,
+  mtry            = hyper_grid_2[optimal_parameters_idx, "mtry"],
+  min.node.size   = hyper_grid_2[optimal_parameters_idx, "node_size"],
+  sample.fraction = hyper_grid_2[optimal_parameters_idx, "sample_size"]
+)
+
+tuned_rf_train$variable.importance
+tuned_rf_train$prediction.error
+
+print("Predict using the test set")
+tuned_test_predictions <- predict(tuned_rf_train, data = test_dyslip)
+
+CrossTable(test_dyslip$CVDMEDST, tuned_test_predictions$predictions)
+
+```
+
+```{r}
+
+table_results <- table(test_dyslip$CVDMEDST, tuned_test_predictions$predictions)
+
+(table_results[1] + table_results[4])/(sum(table_results))*100
+
+```
+
+
+#### GLMs
+
+__Analysing the Coefficients__
+
+```{r, include=FALSE}
+
+X = data.frame(dyslipidemia_no_na[, 2:df_len])
+y = dyslipidemia_no_na$CVDMEDST
+
+#mutate(dyslipidemia_no_na, CVDMEDST = ifelse(CVDMEDST == "0", 0, 1))
+
+```
+
+```{r}
+
+logistic_regression = glm(y~., family=binomial, data=X)
+summary(logistic_regression)
+
+anova(logistic_regression)
+pR2(logistic_regression) # Look at McFadden
+
+```
+
+```{r}
+
+cv_glm(X, y, V = 10)
+
+```
+
+
+__Testing Prediction Capabilities for Logistic Regression__
+
+Now let's test how well this model performs. 
+
+```{r}
+
+head(test)
+
+```
+
+```{r}
+
+sample_sub = sample.split(dyslipidemia_no_na$CVDMEDST, SplitRatio = 0.7)
+train = subset(dyslipidemia_no_na, sample_sub == TRUE)
+test  = subset(dyslipidemia_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+prob_threshold = 0.55
+
+test_predictions_logit <- predict(logistic_regression, newdata=test_dyslip, type='response')
+test_predictions_logit <- ifelse(test_predictions_logit > prob_threshold, 1, 0)
+
+CrossTable(test_dyslip$CVDMEDST, test_predictions_logit)
+
+misClasificError <- mean(test_predictions_logit != test_dyslip$CVDMEDST)
+print(paste('Accuracy: ',1-misClasificError))
+
+print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, test_predictions_logit, positive=1)))
+
+```
+
+```{r}
+
+F1_Score(test$CVDMEDST, test_predictions_logit, positive=1)
+
+```
+
+```{r}
+
+probs_tuning <- seq(0.05, 0.95, by=0.05)
+
+length(probs_tuning)
+
+accuracy <- c()
+fpr <- c()
+fnr <- c()
+f1 <- c()
+
+for (i in 1:length(probs_tuning) ){
+    test_tuning_logit <- predict(logistic_regression, newdata=test_dyslip, type='response')
+    test_tuning_logit <- ifelse(test_tuning_logit > probs_tuning[i], 1, 0)
+    
+    table_results <- table(test_dyslip$CVDMEDST, test_tuning_logit)
+    
+    print(paste("Probability threshold: ", probs_tuning[i]))
+    #print(table_results)
+    
+    accuracy[i] <- (table_results[1] + table_results[4])/sum(table_results)
+    fpr[i] <- table_results[3]/(table_results[1] + table_results[3])
+    fnr[i] <- table_results[2]/(table_results[2] + table_results[4])
+    #f1[i] <- F1_Score(test$CVDMEDST, test_tuning_logit, positive=1) 
+}
+
+```
+
+```{r}
+
+tuning_results <- data.frame(cbind(probs_tuning, accuracy, fpr, fnr, f1))
+tuning_results
+
+ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="red", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %")
+
+```
+
+
+```{r}
+
+pr <- prediction(test_predictions_logit, test$CVDMEDST)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+
+
+```
+
+```{r}
+
+sample_sub = sample.split(dyslipidemia_no_na$CVDMEDST, SplitRatio = 0.7)
+train = subset(dyslipidemia_no_na, sample_sub == TRUE)
+test  = subset(dyslipidemia_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+prob_threshold = 0.70
+
+test_predictions_logit <- predict(logistic_regression, newdata=test_dyslip, type='response')
+test_predictions_logit <- ifelse(test_predictions_logit > prob_threshold, 1, 0)
+
+CrossTable(test_dyslip$CVDMEDST, test_predictions_logit)
+
+misClasificError <- mean(test_predictions_logit != test_diabetes$CVDMEDST)
+print(paste('Accuracy: ',1-misClasificError))
+
+print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, test_predictions_logit, positive=1)))
+
+```
+
+
+Logistic regression performs rather poorly, with tuning of the threshold probability p leading to no substantial improvement in both the classification accuracy nor the overall F1_score. 
+
+It seems that Random Forest is vastly superior to the other classification algorithms for this dataset. 
+
+Now let's try to conduct some cross-validation on GLMs. 
+
+```{r, eval=FALSE, include=FALSE}
+
+cv_glm_backward(X, y, V = 10, pen = log(df_samples))
+cv_glm_backward(X, y, V = 10, pen = 2)
+
+```
+
+## Support Vector Machines
+
+```{r}
+
+class_weights = c(1.5, 1)
+
+sample_sub = sample.split(dyslipidemia_no_na$CVDMEDST, SplitRatio = 0.7)
+train = subset(dyslipidemia_no_na, sample_sub == TRUE)
+test  = subset(dyslipidemia_no_na, sample_sub == FALSE)
+head(train)
+head(test)
+
+svm_model <- svm(CVDMEDST ~ ., data=train, kernel="polynomial",
+                 coef0=1,
+                 gamma=0.1,
+                 cost=0.1,
+                 class.weights=c("0"=class_weights[1], "1"=class_weights[2])
+                 )
+summary(svm_model)
+
+test_pred <- predict(svm_model, test[, -1])
+test_pred[1:10]
+
+```
+
+```{r}
+
+CrossTable(test$CVDMEDST, test_pred)
+
+table_results <- table(test$CVDMEDST, test_pred)
+
+print("Accuracy:")
+(table_results[1]+table_results[4])/sum(table_results)*100
+
+print("F1_score:")
+F1_Score(test$CVDMEDST, test_pred)
+
+```
+
+## Visualising Variables 
+
+```{r}
+
+df <- dyslipidemia_no_na
+
+density_bmi <- ggplot(df, aes(x = df$BMISC, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$BMISC, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("BMISC")
+
+density_age <- ggplot(df, aes(x = df$AGEC, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$AGEC, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("AGEC")
+
+density_fat <- ggplot(df, aes(x = df$FATT1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$FATT1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("FATT1")
+
+density_sugar <- ggplot(df, aes(x = df$SUGART1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SUGART1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SUGART1")
+
+density_fat_precent <- ggplot(df, aes(x = df$FATPER1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$FATPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("FATPER1")
+
+density_linoleic <- ggplot(df, aes(x = df$LAPER1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$LAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("LAPER1")
+
+density_alpha_linoleic <- ggplot(dyslipidemia_no_na, aes(x = dyslipidemia_no_na$ALAPER1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(dyslipidemia_no_na$ALAPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("ALAPER1")
+
+density_carbo_percent <- ggplot(df, aes(x = df$CHOPER1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$CHOPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("CHOPER1")
+
+density_sat_percent <- ggplot(df, aes(x = df$SATPER1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SATPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SATPER1")
+
+density_trans_fat_percent <- ggplot(df, aes(x = df$TRANPER1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$TRANPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("TRANPER1")
+
+density_mono_fat_percent <- ggplot(df, aes(x = df$MONOPER1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$MONOPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("MONOPER1")
+
+density_poly_fat_percent <- ggplot(df, aes(x = df$POLYPER1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$POLYPER1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("POLYPER1")
+
+density_systol <- ggplot(df, aes(x = dyslipidemia_no_na$SYSTOL, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$SYSTOL, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("SYSTOL")
+
+density_niacin <- ggplot(df, aes(x = df$B3T1, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$B3T1, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("B3T1")
+
+grid.arrange(density_bmi, density_age, density_fat, 
+             density_sugar, density_fat_precent, density_linoleic, 
+             density_alpha_linoleic, density_carbo_percent, density_sat_percent,
+             density_trans_fat_percent, density_mono_fat_percent, density_poly_fat_percent,
+             density_systol, density_niacin,
+             nrow = 5, ncol = 3)
+             
+density_hdl <- ggplot(df, aes(x = df$HDLCHREB, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$HDLCHREB, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("HDLCHREB")
+
+density_ldl <- ggplot(df, aes(x = df$LDLRESB, fill = CVDMEDST)) +
+  geom_density(alpha = 0.5) +
+    scale_fill_discrete(labels=c("0", "1")) + guides(fill=guide_legend(title=NULL)) +
+      geom_vline(xintercept = mean(df$LDLRESB, na.rm=TRUE), linetype="dashed", color="black", size=1) +
+        xlab("LDLRESB")
+
+density_hdl
+
+density_ldl
+
+```
+
+As we suspected, the variables partitioned by class are barely distinguishable. It is no wonder then, that the models fails to have any meaningful increase in accuracy.
+
+### Principal Component Analysis
+
+```{r}
+
+dyslipidemia_cluster <- dyslipidemia_no_na[, 2:df_len]
+dyslipidemia_cluster_int <- data.frame(scale(dyslipidemia_cluster))
+
+```
+
+
+```{r}
+
+dyslipidemia_pca <- princomp(dyslipidemia_cluster_int, cor=TRUE)
+summary(dyslipidemia_pca)
+
+```
+
+```{r}
+
+dyslipidemia_pca$sdev[1:10]
+dyslipidemia_pca$scores[1:20, 1:2]
+
+```
+
+```{r}
+
+apply(dyslipidemia_cluster_int, 2, cor, dyslipidemia_pca$scores[, 1]) # apply for df over columns, FUNC=cor and you're correlating with nutm_pca scores.
+
+```
+
+```{r}
+
+plot(dyslipidemia_pca, type="l", main="PCA for Dyslipidemia Feature Variables")
+
+```
+
+```{r}
+
+head(dyslipidemia_no_na)
+
+k_pca <- ggbiplot(nutm_pca, obs.scale = 1, var.scale = 1,
+                  groups = dyslipidemia_no_na$CVDMEDST,
+                  varname.size = 2, labels.size = 2,
+                  ellipse = TRUE, circle = TRUE
+                  ) + 
+  scale_color_manual(name="Class", values=c("black", "red")) +
+  theme(legend.direction ="horizontal", 
+        legend.position = "top")
+
+print(k_pca)
+
+```
+
+There appears to be variance within the feature variables itself, but the majority of the variance exists in both classes, and will be difficult to distingiush and predict. Much of the correlated variance comes from the various fats, but it is in the end unable to separate the data effectively. 
