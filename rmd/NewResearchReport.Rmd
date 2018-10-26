@@ -1,0 +1,217 @@
+---
+title: "Effectiveness of using Dietary Composition to predict Type II Diabetes and Dyslipidemia for ages 18+"
+author: "Ian Astalosh, Cassie Brooks, Catherine Chen, Jerry Xu, Leon Yao"
+output: pdf_document
+---
+
+```{r, include=FALSE}
+#PACKAGES
+#install.packages(ggplot2)
+#install.packages()
+#install.packages()
+#library(ggplot2)
+#library()
+#library()
+```
+
+
+# Executive Summary
+This collaborative effort between nutrition and statistics departments aims to assess the impact of dietary fats on non-communicable diseases (NCD's). The data was taken from the Australian Health Survey 2011-2012 (AHS), at the time the largest health survey ever conducted in Australia. Focussing on adults (ages 18 and over), the main research questions we sought to answer were:
+
+\begin{enumerate}
+\item What factors influence the chances of a person having an NCD such as type II diabetes or dyslipidemia?
+\item How does the amount of dietary fat affect a person's chances of having type II diabetes or dyslipidemia?
+\item How do free sugars and added sugars affect a person's chances of having type II diabetes or dyslipidemia?
+\item Is it possible to predict prevalence of these diseases from only basic physical details and these dietary breakdowns?
+\end{enumerate}
+
+We found \textbf{results}
+
+# Context
+NUTM intro
+
+```{r, echo=FALSE}
+#PACKAGES USED IN THIS ANALYSIS. TO INSTALL SIMPLY UNCOMMENT THE LINE.
+
+# install.packages("tidyverse")
+# install.packages("tidyr")
+# install.packages("dplyr")
+# install.packages("broom") # for tidy()
+# install.packages("ggplot2")
+# install.packages("pROC")
+# install.packages("plotROC")
+# install.packages("gmodels") #CrossTable
+# install.packages("MLmetrics")
+# install.packages("ROCR")
+# install.packages("e1071") # SVM
+# install.packages("pscl")
+# install.packages("caTools") # train_test_split
+# install.packages("gridExtra") # Grid plotting for ggplot2
+# install.packages("factoextra")
+# install.packages("kmed")
+# install.packages("cluster")
+# install.packages("outliers")
+# install.packages("ggbiplot")
+# # install.packages("rsample")      # data splitting - not available for the most recent version of R
+# install.packages("randomForestSRC") # basic RF package
+# install.packages("ranger")
+# install.packages("kableExtra")
+
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(broom) # for tidy()
+library(ggplot2)
+library(pROC)
+library(plotROC)
+library(gmodels) #CrossTable
+library(MLmetrics)
+library(ROCR)
+
+library(e1071) # SVM
+
+library(pscl)
+library(caTools) # train_test_split
+
+library(gridExtra) # Grid plotting for ggplot2
+library(factoextra)
+library(kmed)
+library(cluster)
+library(outliers)
+library(ggbiplot)
+
+# library(rsample)      # data splitting - not available for the most recent version of R
+library(randomForestSRC) # basic RF package
+library(ranger)
+
+source("./functions/cv_knn.R")
+source("./functions/cv_da.R")
+source("./functions/cv_rpart.R")
+source("./functions/cv_glm.R")
+source("./functions/cv_glm_backward.R")
+
+feature_variables = c("BMISC", "AGEC", "PHDKGWBC", "EXLWTBC", "SF2SA1QN", "INCDEC", "HSUGBC", "FATT1", "SUGART1", 
+                      "PREVAT1", "PROVAT1", "FATPER1", "LAPER1", "ALAPER1", "CHOPER1", "SUGPER1", "SATPER1", 
+                      "TRANPER1", "MONOPER1", "POLYPER1", "ADTOTSE", "SEX", "SMKSTAT", "SYSTOL", "FASTSTAD", 
+                      "HDLCHREB", "LDLNTR", "LDLRESB", "B3T1",
+                      
+                      "CHOWSAT1", "STARCHT1", "FIBRET1", "FIBRPER1", "ALCT1", "ALCPER1", 
+                      "PEFRESD1", "PEADDSD1")
+# BMR, SLPTIME
+response_variables = c("CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST")
+all_variables = c(feature_variables, response_variables)
+nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
+nutm = nutm_orig[all_variables]
+```
+
+We'll need to reprocess some of the variables as factors. 
+
+```{r}
+categoricalList <- c()
+categoricalList[ 1 ] <- FALSE #  BMISC 
+categoricalList[ 2 ] <- FALSE #  AGEC 
+categoricalList[ 3 ] <- FALSE #  PHDKGWBC 
+categoricalList[ 4 ] <- FALSE #  EXLWTBC 
+categoricalList[ 5 ] <- TRUE #  SF2SA1QN 
+categoricalList[ 6 ] <- TRUE #  INCDEC 
+categoricalList[ 7 ] <- TRUE #  HSUGBC 
+categoricalList[ 8 ] <- FALSE #  FATT1 
+categoricalList[ 9 ] <- FALSE #  SUGART1 
+categoricalList[ 10 ] <- FALSE #  PREVAT1 
+categoricalList[ 11 ] <- FALSE #  PROVAT1 
+categoricalList[ 12 ] <- FALSE #  FATPER1 
+categoricalList[ 13 ] <- FALSE #  LAPER1 
+categoricalList[ 14 ] <- FALSE #  ALAPER1 
+categoricalList[ 15 ] <- FALSE #  CHOPER1 
+categoricalList[ 16 ] <- FALSE #  SUGPER1 
+categoricalList[ 17 ] <- FALSE #  SATPER1 
+categoricalList[ 18 ] <- FALSE #  TRANPER1 
+categoricalList[ 19 ] <- FALSE #  MONOPER1 
+categoricalList[ 20 ] <- FALSE #  POLYPER1 
+categoricalList[ 21 ] <- FALSE #  ADTOTSE 
+categoricalList[ 22 ] <- TRUE #  SEX 
+categoricalList[ 23 ] <- TRUE #  SMKSTAT 
+categoricalList[ 24 ] <- FALSE #  SYSTOL 
+categoricalList[ 25 ] <- TRUE #  FASTSTAD 
+categoricalList[ 26 ] <- TRUE #  HDLCHREB 
+categoricalList[ 27 ] <- TRUE #  LDLNTR 
+categoricalList[ 28 ] <- TRUE #  LDLRESB 
+categoricalList[ 29 ] <- FALSE #  B3T1
+categoricalList[ 30 ] <- FALSE #  CHOWSAT1 
+categoricalList[ 31 ] <- FALSE #  STARCHT1 
+categoricalList[ 32 ] <- FALSE #  FIBRET1 
+categoricalList[ 33 ] <- FALSE #  FIBRPER1 
+categoricalList[ 34 ] <- FALSE #  ALCT1 
+categoricalList[ 35 ] <- FALSE #  ALCPER1
+categoricalList[ 36 ] <- FALSE #  PERFRESD1 
+categoricalList[ 37 ] <- FALSE #  PEADDSD1 
+categoricalList[ 38 ] <- TRUE #  CHOLNTR 
+categoricalList[ 39 ] <- TRUE #  HDLCHREB 
+categoricalList[ 40 ] <- TRUE #  DIABBC 
+categoricalList[ 41 ] <- TRUE #  HCHOLBC 
+categoricalList[ 42 ] <- TRUE #  HYPBC 
+categoricalList[ 43 ] <- TRUE #  CVDMEDST 
+# "CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST"
+for (i in 1:length(categoricalList)) {
+  if (categoricalList[ i ]) {
+      nutm[,i] <- as.factor(nutm[ ,i])
+  } else {
+     nutm[, i] <- as.numeric(nutm[, i])
+  }
+}
+head(nutm)
+```
+
+# Exploratory Data Analysis
+
+## Missing Values
+The data supplied for this project from the AHS contained 12,153 instances of 144 variables. By considering only adults (ages 18+) and consulting with the nutrition students on what variables to include, our working dataset was trimmed to 9435 instances of 44 variables.  
+
+The data firstly needed to be cleaned as there were large amounts of missingness. Our response variables of interest are DIABBC (presence of type 2 diabetes) and CVDMEDST (dyslipidemia). For variables that were identified as potential response variables, the missingness actually varied significantly:
+
+```{r}
+diabbc_miss = 100*mean(is.na(nutm$DIABBC))
+dyslip_miss = 100*mean(is.na(nutm$CVDMEDST))
+
+miss_mat = matrix(c(diabbc_miss, dyslip_miss), nrow=1)
+colnames(miss_mat) = c("Diabetes", "Dyslipidemia"); rownames(miss_mat) = "Percentage Data Missing"
+
+kabtab = kable(miss_mat)
+kable_styling(kabtab)
+
+```
+
+We have complete responses for diabetes, however only about a third of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad:
+
+```{r}
+# compare complete cases before and after
+
+```
+
+## Dietary Sugars and Fats
+
+(boxplots of fats with and without diabetes, dyslipidemia)
+(boxplots of sugars with and without diabetes, dyslipidemia)
+
+(correlations among all factors)
+
+(tables of numbers of responses to be analysed ie. 4000 pos, 1500 neg etc.)
+
+
+# Models
+We will use a number of classifiers to attempt to predict which patients have the non-communicable diseases of high cholsterol, type II diabetes, hypertension and dyslipidemia. We used a number of classifiers, however the two main classifiers we focus on are generalised linear models (logistic regressions) and random forests.
+ 
+The reason for this is to take a more prediction based approach as well as a more inferential based approach. The random forest method was chosen as it is an extremely powerful classifcation algorithm, capable of handling different types of data and adept at preventing overfitting through its ensemble method. From this, we will gain highly optimized predictions of whether a person will or will not have a certain disease. However, it is limited in its scope in terms of interpretability, as it acts as somewhat of a black box model. From our random forests we will see which variables are most significant in determining the classification, but with no indication as to whether they are significant in a positive or negative way, for example.
+
+Our logistic regression, alternatively, provides greater insight into the effect of each variable through its parameter estimates. While the error may be higher, we will more clearly be able to see the size and impact of the effect of each covariate. Specifically, this will enable us to examine which dietary fats positively and negatively impact a person's chances of disease.
+
+We additionally fitted other classifiers such as KNN and CART for reference, however we are most interested in the GLMs and random forests. 
+
+
+
+# Discussion
+
+
+
+
+# References
