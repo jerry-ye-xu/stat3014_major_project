@@ -93,6 +93,7 @@ library(ROCR)
 library(e1071) # SVM
 
 library(pscl)
+library(smotefamily)
 library(caTools) # train_test_split
 
 library(gridExtra) # Grid plotting for ggplot2
@@ -216,46 +217,37 @@ We now perform exploratory data analysis on our variables of interest: type II d
 We firstly would like to see the proportion of people in our data with our particular diseases. We collapse the DIABBC into a simple "does not have diabetes" (0) and "has diabetes" (1):
 
 ```{r, include=FALSE, echo=FALSE}
+#DIABBC 
 diabetes_response = c("DIABBC")
 diabetes_variables = c("BMISC", "AGEC", "EXLWTBC", 
-                       # "SF2SA1QN", "INCDEC",
-                       # "HSUGBC", 
-                       #"FATT1", 
-                       "SUGART1", 
+                       "SUGART1", "CHOPER1", 
                        "FATPER1", "LAPER1", "ALAPER1", 
-                       "CHOPER1", 
                        "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
                        "ADTOTSE",
-                       # "SEX"
-                       # "SMKSTAT", 
-                       "SYSTOL", 
-                       "B3T1",
-                       # "FASTSTAD", 
-                       #"HDLCHREB", 
-                       # "LDLNTR", 
-                       #"LDLRESB",
-                      "CHOWSAT1", 
-                      "STARCHT1", 
-                      # "FIBRET1", 
-                      "FIBRPER1", 
-                      #"ALCT1", 
-                      "ALCPER1", 
-                      #"CHOPER1", 
+                       "SYSTOL", "B3T1",
+                      "CHOWSAT1", "STARCHT1", "FIBRPER1", "ALCPER1", 
                       "PEFRESD1", "PEADDSD1"
                        )
+
 diabetes = nutm[c(diabetes_response, diabetes_variables)]
 diabetes = diabetes[diabetes$DIABBC != 3, ]
+
 table(diabetes$DIABBC)
+
 diabetes <- mutate(diabetes, DIABBC = ifelse(DIABBC == 5, "0", "1"))
 diabetes$DIABBC <- as.factor(diabetes$DIABBC)
-head(diabetes)
 
-sum(is.na(nutm[diabetes_response]))
 diabetes_no_na <- diabetes[complete.cases(diabetes), ]
+
 dim(diabetes_no_na)
-class_count <- table(diabetes_no_na$DIABBC)
+head(diabetes_no_na)
+table(diabetes_no_na$DIABBC)
+
+class_count <- table(diabetes$DIABBC)
 count_mat = matrix(class_count, nrow=1)
 colnames(count_mat) = c("Does not have diabetes", "Has diabetes"); rownames(count_mat) = "Number of instances"
+count_mat
+
 ```
 
 ```{r, echo=FALSE}
@@ -313,35 +305,11 @@ dim(dyslipidemia_no_na)
 head(dyslipidemia_no_na)
 table(dyslipidemia_no_na$CVDMEDST)
 
-#DIABBC 
-diabetes_response = c("DIABBC")
-diabetes_variables = c("BMISC", "AGEC", "EXLWTBC", 
-                       "SUGART1", "CHOPER1", 
-                       "FATPER1", "LAPER1", "ALAPER1", 
-                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
-                       "ADTOTSE",
-                       "SYSTOL", "B3T1",
-                      "CHOWSAT1", "STARCHT1", "FIBRPER1", "ALCPER1", 
-                      "PEFRESD1", "PEADDSD1"
-                       )
-
-diabetes = nutm[c(diabetes_response, diabetes_variables)]
-diabetes = diabetes[diabetes$DIABBC != 3, ]
-
-table(diabetes$DIABBC)
-
-diabetes <- mutate(diabetes, DIABBC = ifelse(DIABBC == 5, "0", "1"))
-diabetes$DIABBC <- as.factor(diabetes$DIABBC)
-
-diabetes_no_na <- diabetes[complete.cases(diabetes), ]
-
-dim(diabetes_no_na)
-head(dyslipidemia_no_na)
-table(diabetes_no_na$DIABBC)
-
 class_count <- table(dyslipidemia$CVDMEDST)
 count_mat_dys = matrix(class_count, nrow=1)
 colnames(count_mat_dys) = c("Does not have dyslipidemia", "Has dyslipidemia"); rownames(count_mat_dys) = "Number of instances"
+count_mat_dys
+
 ```
 
 ```{r, echo=FALSE}
@@ -406,9 +374,13 @@ The discussion begins with the less successful modelling outcomes for the binary
 
 At the end of the all the analysis, we visualised the densities of each feature variable grouped by class and unsurprisingly, the densities were almost identical in most cases except for the age variable. We further confirmed this by running a PCA to visualise the variabilities of the data on a 2D plan by class, and again, the classes were spread evenly across the 2 most important components. This meant that there was variance in the variables, but unfortunately the distinction between the 2 classes were insufficient for modelling.
 
-In analysing diabetes, we were able to achieve an acceptable FNR & FPR trade-off of $\approx$30% respectively after tuning the probability threshold hyperparameter for the logistic regression model. The random forest model evaluated blood pressure and sedentary activity, along with percentage fibre intake and added sugars as the most important variables, and this was
+For the ordinal LDL and HDL outcomes, the same issues persisted. Both the Random Forest model, which does not reflect the relationship between the response variables, as well as proportional odds models were overly conservative and failed to predict the boundary cases for both response variables. This is partly attributed to the 
 
-```{r}
+In analysing diabetes, we were able to achieve an acceptable FNR & FPR trade-off of $\approx$ 30\% respectively after tuning the probability threshold hyperparameter for the logistic regression model. The random forest model evaluated blood pressure and sedentary activity, along with percentage fibre intake and added sugars as the most important variables, and this was
+
+```{r, echo=FALSE}
+
+set.seed(10)
 
 sample_sub = sample.split(diabetes_no_na$DIABBC, SplitRatio = .7)
 train_diabetes = subset(diabetes_no_na, sample_sub == TRUE)
@@ -419,9 +391,14 @@ SMOTE_data <- SMOTE(train_diabetes[, -1], train_diabetes[, 1],
 
 names(SMOTE_data$data)[names(SMOTE_data$data) == 'class'] <- "DIABBC"
 
-probs_tuning <- seq(0.05, 0.95, by=0.05)
+df_len <- dim(diabetes_no_na)[2]
 
-length(probs_tuning)
+diabetes_upsample <- data.frame(cbind("DIABBC" = SMOTE_data$data$DIABBC, SMOTE_data$data[, 1:(df_len-1)]))
+
+logistic_regression = glm(DIABBC~., family=binomial, data=diabetes_upsample)
+summary(logistic_regression)
+
+probs_tuning <- seq(0.05, 0.95, by=0.05)
 
 accuracy <- c()
 fpr <- c()
@@ -435,31 +412,58 @@ for (i in 1:length(probs_tuning) ){
     
     table_results <- table(test_diabetes$DIABBC, test_tuning_logit)
     
-    #print(paste("Probability threshold: ", probs_tuning[i]))
-    #print(table_results)
-    
     accuracy[i] <- (table_results[1] + table_results[4])/sum(table_results)
     fpr[i] <- table_results[3]/(table_results[1] + table_results[3])
     fnr[i] <- table_results[2]/(table_results[2] + table_results[4])
-    #f1[i] <- F1_Score(test$CVDMEDST, test_tuning_logit, positive=1) 
 }
 
 tuning_results <- data.frame(cbind(probs_tuning, "accuracy" = accuracy*100, "FPR" = fpr*100, "FNR" = fnr*100, "F1" = f1))
 tuning_results
 
-ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="red", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %")
+ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="orange", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %") +
+  theme_minimal()
 
 ```
 
+```{r, echo=FALSE}
+
+prob_threshold = 0.40
+diabetes_true_test <- predict(logistic_regression, newdata = test_diabetes, type='response')
+diabetes_true_test <- ifelse(diabetes_true_test > prob_threshold, 1, 0)
+table(test_diabetes$DIABBC, diabetes_true_test)
+
+
+```
+
+```{r}
+
+diabetes_train <- ranger(
+  formula = DIABBC ~ .,
+  data    = diabetes_upsample,
+  importance = "impurity"
+  # xtest   = test$y,
+  # ytest   = test[, 2:df_len]
+)
+
+diabetes_true_test_rf <- predict(diabetes_train, data = test_diabetes)
+table(test_diabetes$DIABBC, diabetes_true_test_rf$predictions)
+
+diabetes_train$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(25) %>%
+  ggplot(aes(reorder(names, x), x)) +
+  geom_col(fill="orange") + theme_minimal()
+  coord_flip() +
+  ggtitle("Most important variables for Diabetes")
+
+```
 
 We will use a number of classifiers to attempt to predict which patients have the non-communicable diseases of high cholsterol, type II diabetes, hypertension and dyslipidemia. We used a number of classifiers, however the two main classifiers we focus on are generalised linear models (logistic regressions) and random forests.
  
 The reason for this is to take a more prediction based approach as well as a more inferential based approach. The random forest method was chosen as it is an extremely powerful classifcation algorithm, capable of handling different types of data and adept at preventing overfitting through its ensemble method. From this, we will gain highly optimized predictions of whether a person will or will not have a certain disease. However, it is limited in its scope in terms of interpretability, as it acts as somewhat of a black box model. From our random forests we will see which variables are most significant in determining the classification, but with no indication as to whether they are significant in a positive or negative way, for example.
 
 Our logistic regression, alternatively, provides greater insight into the effect of each variable through its parameter estimates. While the error may be higher, we will more clearly be able to see the size and impact of the effect of each covariate. Specifically, this will enable us to examine which dietary fats positively and negatively impact a person's chances of disease.
-
-We additionally fitted other classifiers such as KNN and CART for reference, however we are most interested in the GLMs and random forests. 
-
 
 
 # Discussion
