@@ -363,12 +363,10 @@ There are again some interesting trends to be seen from this. Most variables are
 Outside of this, there appears to be no notable correlation trends that will affect our analysis.
 
 # Models
-
 Although we directed our focus towards the relationship between sugars and diabetes/dyslipidemia, we also looked at the relationship between various fats to cholesterol levels as well, increasing our scope to 6 response variables. We only include the important results here, the detailed analysis can be found in the `./rmd` directory.  
 
 
 ## Choice of Models 
-
 The response variables analysed fall into 3 main categories. The diabetes response variable (DIABBC), cholesterol levels (CHOLNTR), LDL cholesterol variables (LDLNTR) and dyslipidemia (CVDMEDST), are all binary outcomes, and thus we can use various straightforward classification models for prediction. 
 
 The other 2 response variables, HDL cholesterol (HDLCHREB) and LDL cholesterol (LDLRESB) are all ordinal, categorical variables the represent a range of mmol/L concentrations from low to high. For these variables, we utilised a mixture of approaches, including the standard random forest (which we know does not reflect the relationship between the variables) as well as the more appropriate proportional odds models. 
@@ -379,7 +377,6 @@ Logistic regression, alternatively, provides greater insight into the effect of 
 
 
 ## Summary of Modelling  
-
 The discussion begins with the less successful modelling outcomes for the binary response variables, namely LDLNTR and CHOLNTR. Despite utilising a variety of classification algorithms and hyperparameter tuning techniques, the outcome of the models were at best a random guess. This is due to the feature variables being indistinguishable between the 2 classes, resulting in a significant overlap in the n-dimensional hyperplane, making it impossible of the algorithms to learn the unique features of each class for classification. 
 
 At the end of the all the analysis, we visualised the densities of each feature variable grouped by class and unsurprisingly, the densities were almost identical in most cases except for the age variable. We further confirmed this by running a PCA to visualise the variabilities of the data on a 2D plan by class, and again, the classes were spread evenly across the 2 most important components. This meant that there was variance in the variables, but unfortunately the distinction between the 2 classes were insufficient for modelling.
@@ -389,7 +386,6 @@ For the ordinal LDL and HDL outcomes, the same issues persisted. Both the Random
 Now we turn to discuss the 2 remaining binary response variables, diabetes and dyslipidemia. 
 
 ### Diabetes
-
 For diabetes, the imbalance between the 2 classes required upsampling in order to achieve an effective balance for learning. We used a straight upsampling method and a more complicated SMOTE sampling method, that replicates the data by changing it slightly using a nearest neighbours approach. As a baseline, we also tried penalised-SVM on the original, imbalanced dataset which could reduce the overall FNR and FPR despite hyperparameter tuning. 
 
 The SMOTE upsampling method was the most successful. We witheld a test set from the original data as evaluation, and used a train-test split approach to train the models. 
@@ -436,7 +432,6 @@ for (i in 1:length(probs_tuning) ){
 }
 
 tuning_results <- data.frame(cbind(probs_tuning, "accuracy" = accuracy*100, "FPR" = fpr*100, "FNR" = fnr*100, "F1" = f1))
-tuning_results
 
 ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="orange", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %") +
   theme_minimal()
@@ -460,7 +455,9 @@ print(paste("F1 score: ", F1_Score(test_diabetes$DIABBC, diabetes_true_test)))
 
 ```{r}
 
-diabetes_train <- ranger(
+set.seed(10)
+
+diabetes_rf <- ranger(
   formula = DIABBC ~ .,
   data    = diabetes_upsample,
   importance = "impurity"
@@ -468,7 +465,7 @@ diabetes_train <- ranger(
   # ytest   = test[, 2:df_len]
 )
 
-diabetes_train$variable.importance %>% 
+diabetes_rf$variable.importance %>% 
   tidy() %>%
   dplyr::arrange(desc(x)) %>%
   dplyr::top_n(25) %>%
@@ -481,7 +478,7 @@ diabetes_train$variable.importance %>%
 
 ```{r, echo=FALSE}
 
-diabetes_true_test_rf <- predict(diabetes_train, data = test_diabetes)
+diabetes_true_test_rf <- predict(diabetes_rf, data = test_diabetes)
 diabetes_cm <- table(test_diabetes$DIABBC, diabetes_true_test_rf$predictions)
 diabetes_cm 
 
@@ -493,13 +490,14 @@ print(paste("F1 score: ", F1_Score(test_diabetes$DIABBC, diabetes_true_test_rf$p
 
 ```
 
- The random forest model was not able to achieve the same performance for the FNR. 
+The random forest model was not able to achieve the same performance for the FNR. 
 
 ### Dyslipidemia
-
-
+With dyslipidemia, the classes were more balanced, meaning that using upsampling techniques were not necessary. In this case, the logistic regression were able to find a compromise of $\approx$30\% given the optimal probability threshold used to classify the outcomes. 
 
 ```{r, echo=FALSE}
+
+set.seed(10)
 
 X = data.frame(dyslipidemia_no_na[, 2:df_len])
 y = dyslipidemia_no_na$CVDMEDST
@@ -530,11 +528,61 @@ for (i in 1:length(probs_tuning) ){
 }
 
 tuning_results <- data.frame(cbind(probs_tuning, accuracy, fpr, fnr, f1))
-tuning_results
 
 ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="orange", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %") +
   theme_minimal()
 
+
+```
+
+```{r}
+
+prob_threshold = 0.70
+
+test_predictions_logit <- predict(logistic_regression, newdata=test_dyslip, type='response')
+test_predictions_logit <- ifelse(test_predictions_logit > prob_threshold, 1, 0)
+
+dyslip_cm <- table(test_dyslip$CVDMEDST, test_predictions_logit)
+dyslip_cm
+
+print(paste("Accuracy : ", (dyslip_cm[1] + dyslip_cm[4])/sum(dyslip_cm) ))
+print(paste("FPR : ", dyslip_cm[3]/(dyslip_cm[1] + dyslip_cm[3]) ))
+print(paste("FNR : ", dyslip_cm[2]/(dyslip_cm[2] + dyslip_cm[4]) ))
+print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, dyslip_true_test_rf$predictions) ))
+
+```
+
+The random forest model produced too much 
+
+```{r, echo=FALSE}
+
+dyslip_rf <- ranger(
+  formula = CVDMEDST ~ .,
+  data    = train_dyslip,
+  importance = "impurity"
+)
+
+dyslip_rf$variable.importance %>% 
+  tidy() %>%
+  dplyr::arrange(desc(x)) %>%
+  dplyr::top_n(30) %>%
+  ggplot(aes(reorder(names, x), x)) +
+  geom_col(fill = "orange") +
+  coord_flip() + theme_minimal()
+  ggtitle("Most important variables for Diabetes")
+
+```
+
+```{r}
+
+dyslip_true_test_rf <- predict(dyslip_rf, data = test_dyslip)
+dyslip_cm <- table(test_dyslip$CVDMEDST, dyslip_true_test_rf$predictions)
+dyslip_cm
+
+print(paste("Accuracy : ", (dyslip_cm[1] + dyslip_cm[4])/sum(dyslip_cm) ))
+print(paste("FPR : ", dyslip_cm[3]/(dyslip_cm[1] + dyslip_cm[3]) ))
+print(paste("FNR : ", dyslip_cm[2]/(dyslip_cm[2] + dyslip_cm[4]) ))
+print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, dyslip_true_test_rf$predictions) ))
 
 ```
 
