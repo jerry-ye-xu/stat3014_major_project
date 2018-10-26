@@ -60,7 +60,7 @@ set.seed(15)
 ```
 
 ## Standardised Preprocessing
-
+ 
 ```{r}
 
 feature_variables = c("BMISC", "AGEC", "PHDKGWBC", "EXLWTBC", "SF2SA1QN", "INCDEC", "HSUGBC", "FATT1", "SUGART1", 
@@ -68,7 +68,7 @@ feature_variables = c("BMISC", "AGEC", "PHDKGWBC", "EXLWTBC", "SF2SA1QN", "INCDE
                       "TRANPER1", "MONOPER1", "POLYPER1", "ADTOTSE", "SEX", "SMKSTAT", "SYSTOL", "FASTSTAD", 
                       "HDLCHREB", "LDLNTR", "LDLRESB", "B3T1",
                       
-                      "CHOWSAT1", "STARCHT1", "FIBRET1", "FIBRPER1", "ALCT1", "ALCPER1", "CHOPER1", 
+                      "CHOWSAT1", "STARCHT1", "FIBRET1", "FIBRPER1", "ALCT1", "ALCPER1", 
                       "PEFRESD1", "PEADDSD1")
 
 # BMR, SLPTIME
@@ -132,22 +132,34 @@ categoricalList[ 28 ] <- TRUE #  LDLRESB
 
 categoricalList[ 29 ] <- FALSE #  B3T1
 
-categoricalList[ 30 ] <- TRUE #  CHOLNTR 
-categoricalList[ 31 ] <- TRUE #  HDLCHREB 
-categoricalList[ 32 ] <- TRUE #  DIABBC 
-categoricalList[ 33 ] <- TRUE #  HCHOLBC 
-categoricalList[ 34 ] <- TRUE #  HYPBC 
-categoricalList[ 35 ] <- TRUE #  CVDMEDST 
+categoricalList[ 30 ] <- FALSE #  CHOWSAT1 
+categoricalList[ 31 ] <- FALSE #  STARCHT1 
+categoricalList[ 32 ] <- FALSE #  FIBRET1 
+categoricalList[ 33 ] <- FALSE #  FIBRPER1 
+categoricalList[ 34 ] <- FALSE #  ALCT1 
+categoricalList[ 35 ] <- FALSE #  ALCPER1
+categoricalList[ 36 ] <- FALSE #  PERFRESD1 
+categoricalList[ 37 ] <- FALSE #  PEADDSD1 
+
+categoricalList[ 38 ] <- TRUE #  CHOLNTR 
+categoricalList[ 39 ] <- TRUE #  HDLCHREB 
+categoricalList[ 40 ] <- TRUE #  DIABBC 
+categoricalList[ 41 ] <- TRUE #  HCHOLBC 
+categoricalList[ 42 ] <- TRUE #  HYPBC 
+categoricalList[ 43 ] <- TRUE #  CVDMEDST 
 
 # "CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVDMEDST"
 
 for (i in 1:length(categoricalList)) {
   if (categoricalList[ i ]) {
       nutm[,i] <- as.factor(nutm[ ,i])
+  } else {
+     nutm[, i] <- as.numeric(nutm[, i])
   }
 }
 
 head(nutm)
+
 ```
 
 #### Data Preprocessing Stage
@@ -173,9 +185,9 @@ dyslipidemia_variables = c("BMISC", "AGEC", "EXLWTBC",
                        # "HSUGBC", 
                        #"FATT1", 
                        "SUGART1", 
-                       #"FATPER1", "LAPER1", "ALAPER1", 
+                       "FATPER1", "LAPER1", "ALAPER1", 
                        "CHOPER1", 
-                       #"SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
                        "ADTOTSE",
                        # "SEX"
                        # "SMKSTAT", 
@@ -184,7 +196,7 @@ dyslipidemia_variables = c("BMISC", "AGEC", "EXLWTBC",
                        # "FASTSTAD", 
                        #"HDLCHREB", 
                        # "LDLNTR", 
-                       #"LDLRESB"
+                       #"LDLRESB",
                       "CHOWSAT1", 
                       "STARCHT1", 
                       # "FIBRET1", 
@@ -246,7 +258,7 @@ Now we can try to fit a KNN to test the code.
 
 ```{r}
 
-X = data.frame(scale(dyslipidemia_no_na[, 2:(df_len-2)]))
+X = data.frame(scale(dyslipidemia_no_na[, 2:(df_len)]))
 y = dyslipidemia_no_na$CVDMEDST
 cv_knn(X, y, k=neighbours, V=10, seed=1)
 
@@ -311,7 +323,7 @@ cv_da(X = X, y = y, V = 10, method = "qda", seed = 1)
 #dyslipidemia_no_na$LDLRESB <- as.numeric(dyslipidemia_no_na$LDLRESB)
 #dyslipidemia_no_na$HDLCHREB <- as.numeric(dyslipidemia_no_na$HDLCHREB)
 
-X <- as.matrix(dyslipidemia_no_na[, 2:(df_len)])
+X <- as.matrix(dyslipidemia_no_na[, 2:df_len])
 y <- dyslipidemia_no_na$CVDMEDST
 
 dyslipidemia_no_na_cart <- data.frame(y, X)
@@ -367,7 +379,7 @@ CrossTable(test_dyslip$CVDMEDST, test_predictions$predictions)
 train$variable.importance %>% 
   tidy() %>%
   dplyr::arrange(desc(x)) %>%
-  dplyr::top_n(25) %>%
+  dplyr::top_n(30) %>%
   ggplot(aes(reorder(names, x), x)) +
   geom_col() +
   coord_flip() +
@@ -391,15 +403,7 @@ F1_Score(test_dyslip$CVDMEDST, test_predictions$predictions, positive = 1)
 
 ```
 
-
 I want to check the parameters for the RF model
-
-```{r}
-
-summary(train)
-
-```
-
 
 This is a significant improvement in prediction accuracy compared to the first 2 algorithms we used. The distribution of type I and II errors are also acceptable, but not surprisingly we have relatively more false negatives.  
 
@@ -637,7 +641,7 @@ test_predictions_logit <- ifelse(test_predictions_logit > prob_threshold, 1, 0)
 
 CrossTable(test_dyslip$CVDMEDST, test_predictions_logit)
 
-misClasificError <- mean(test_predictions_logit != test_diabetes$CVDMEDST)
+misClasificError <- mean(test_predictions_logit != test_dyslip$CVDMEDST)
 print(paste('Accuracy: ',1-misClasificError))
 
 print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, test_predictions_logit, positive=1)))
