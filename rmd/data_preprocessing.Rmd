@@ -7,8 +7,6 @@ output:
   html_document: default
 ---
 
-Warning: The glm functions take a while to run. They have been commented out to save time when running the whole file
-
 ```{r, include=TRUE}
 
 # library(tidyverse)

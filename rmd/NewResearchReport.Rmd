@@ -20,7 +20,7 @@ output: pdf_document
 Cardiovascular diseases are the leading cause of death in Australia, where ischaemic heart diseases is the most common form of cardiovascular-related deaths. An emerging risk factor for cardiovascular disease include obesity, and is considered an uprising epidemic globally. Contributors towards obesity include existing health problems such as type 2 diabetes and dyslipidemia, both of which can often be predicted or controlled through diet. This paper investigates individual dietary intake patterns of Australian adults aged 18-75 years, specifically the composition of dietary fat and carbohydrates, and analysing its effect and relationship with comorbidities of obesity. Data from the Australian Health Survey and National Health Survey 2011-2012 and National Nutrition and Physical Activity Survey 2011-2012 was collaborated and reviewed. Our main research questions were:
 
 \begin{enumerate}
-\item What factors influence the chances of a person having an NCD such as type II diabetes or dyslipidemia?
+\item What factors influence the chances of a person having type II diabetes or dyslipidemia?
 \item How does the amount of dietary fat affect a person's chances of having type II diabetes or dyslipidemia?
 \item How do free sugars and added sugars affect a person's chances of having type II diabetes or dyslipidemia?
 \item Is it possible to predict prevalence of these diseases from only basic physical details and these dietary breakdowns?
@@ -31,16 +31,17 @@ A positive correlation was noted between intake of carbohydrates with dyslipidem
 ## Shortcomings
 \begin{itemize}
 \item There was significant imbalance in the data. Most people reported not having diabetes for example, and this class imbalance caused our classifiers to struggle. 
-\item There were large amounts of missingness in the data. With greater sample size we may have seen more pronounced effects, however even despite the wealth of data here it may not have been enough
+\item There were large amounts of missingness in the data. With greater sample size and diversification we may have seen more pronounced effects, however despite the wealth of data it may not have been enough.
 \item In doing prediction, there is the implicit assumption that a person is living their life as if they did not know their diagnosis. It is reasonable to assume that someone upon learning they are diabetic is likely to change their eating habits, thus meaning their consumption data is not representative of the habits that led to them becoming diabetic in the first place. 
 
 \end{itemize}
 
 # Context
 
-Non-communicable diseases (NCDs) are responsible for 41 million deaths globally each year, with cardiovascular disease and type 2 diabetes (T2D) patients comprising a significant share of Australia’s economic healthcare burden [1]. T2D is the inability of the body to respond properly and make sufficient quantities of the hormone insulin, resulting in various health complications that collectively contributes approximately 5% to Australia’s health burden [2]. Dyslipidemia refers to abnormally elevated cholesterol or lipids in the blood, which can significantly increase the risk of cardiovascular disease, the leading cause of mortality in Australia that contributes 15% to Australia’s health burden [3]. The interplay of genetic, physiological, environmental, and behavioural factors influence and contribute to metabolic risk factors that increase the risk T2D and dyslipidaemia [1]. Overweight and obesity is defined as having a body mass index (BMI) greater than 25, where the associated excessive adiposity is a highly influential risk factor in the development of T2D and dyslipidemia [4]. Excess adiposity plays a pivotal role in the dysregulation of cellular metabolism giving rise to local insulin resistance within adipose tissue [5]. Affected adipose tissue can result in uncontrolled release of fatty acids, elevated secretion of inflammatory cytokines and adipokines that influence lipoprotein metabolism and further impact insulin sensitivity [5]. These perturbations to cellular metabolism and their downstream mechanisms can ultimately result in the development of T2D and dyslipidemia [5]. 
+Non-communicable diseases (NCDs) are responsible for 41 million deaths globally each year, with cardiovascular disease and type 2 diabetes (T2D) patients comprising a significant share of Australia’s economic healthcare burden [1]. T2D is the inability of the body to respond properly and make sufficient quantities of insulin, resulting in various health complications that collectively contributes to approximately 5\% to Australia’s health burden [2]. Dyslipidemia refers to abnormally elevated cholesterol or lipids in the blood, which can significantly increase the risk of cardiovascular disease, the leading cause of mortality in Australia that contributes 15\% to Australia’s health burden [3]. The interplay of genetic, physiological, environmental, and behavioural factors influence and contribute to metabolic risk factors that increase the risk T2D and dyslipidaemia [1]. Overweight and obesity is defined as having a body mass index (BMI) greater than 25, where the associated excessive adiposity is a highly influential risk factor in the development of T2D and dyslipidemia [4]. Excess adiposity plays a pivotal role in the dysregulation of cellular metabolism giving rise to local insulin resistance within adipose tissue [5]. Affected adipose tissue can result in uncontrolled release of fatty acids, elevated secretion of inflammatory cytokines and adipokines that influence lipoprotein metabolism and further impact insulin sensitivity [5]. These perturbations to cellular metabolism and their downstream mechanisms can ultimately result in the development of T2D and dyslipidemia [5]. 
 
-Diet has been shown to greatly impact the risk of developing T2D and dyslipidaemia [6]. Higher total fat intake is believed to contribute directly through the induction of insulin resistance and indirectly, through the positive influence on weight gain [6]. However, studies show that the quality and composition of fat intake was more important, with diets high in plant-based (mainly mono- and polyunsaturated) fats being more beneficial than those high in animal fats (mainly saturated and trans-fats). Specifically, greater consumption of omega-6 polyunsaturated fatty acids (PUFA) has been associated with decreased T2D and dyslipidemia risk [6]. Conversely, studies show that relative carbohydrate proportion in the diet does not significantly affect T2D and dyslipidemia risk [6]. However, diets high in fibre may reduce the risk of diabetes and dyslipidemia [7]. Carbohydrate quality can be measured according to the glycaemic response to carbohydrate-rich foods, where  low glycaemic index (GI) carbohydrates and low glycaemic load (GL) carbohydrates have also been shown to decrease T2D and dyslipidemia risk independent of fibre [6].
+Diet has been shown to greatly impact the risk of developing T2D and dyslipidaemia [6]. Higher total fat intake is believed to contribute directly through the induction of insulin resistance and indirectly, through the positive influence on weight gain [6]. However, studies show that the quality and composition of fat intake was more important, with diets high in plant-based (mainly mono- and polyunsaturated) fats being more beneficial than those high in animal fats (mainly saturated and trans-fats). Specifically, greater consumption of omega-6 polyunsaturated fatty acids (PUFA) has been associated with decreased T2D and dyslipidemia risk [6]. Conversely, studies show that relative carbohydrate proportion in the diet does not significantly affect T2D and dyslipidemia risk [6]. However, diets high in fibre may reduce the risk of diabetes and dyslipidemia [7]. Carbohydrate quality can be measured according to the glycemic response to carbohydrate-rich foods, where low glycemic index (GI) carbohydrates and low glycemic load (GL) carbohydrates have also been shown to decrease T2D and dyslipidemia risk independent of fibre [6].
+
 This paper investigates individual dietary intake patterns of Australian adults aged 18-75 years, specifically the composition of dietary fat and carbohydrates, analysing its effect and relationship with comorbidities of obesity, namely dyslipidemia and T2D. We explore the specific effects of individual types dietary fats and carbohydrates on the characteristics of dyslipidemia and T2D. 
 
 
@@ -191,7 +192,7 @@ head(nutm)
 ## Missing Values
 The data supplied for this project from the AHS contained 12,153 instances of 144 variables. By considering only adults (ages 18+) and consulting with the nutrition students on what variables to include, our working dataset was trimmed to 9435 instances of 44 variables.  
 
-The data firstly needed to be cleaned as there were large amounts of missingness. Our response variables of interest are DIABBC (presence of type 2 diabetes) and CVDMEDST (dyslipidemia). For variables that were identified as potential response variables, the missingness actually varied significantly:
+The data firstly needed to be cleaned as there were large amounts of missingness. Our main response variables of interest are DIABBC (presence of type 2 diabetes) and CVDMEDST (dyslipidemia). For variables that were identified as potential response variables, the missingness actually varied significantly:
 
 ```{r, echo=FALSE, fig=TRUE}
 diabbc_miss = 100*mean(is.na(nutm$DIABBC))
@@ -205,10 +206,10 @@ kable_styling(kabtab)
 
 ```
 
-We have complete responses for diabetes, however only about a quarter of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad, and our sample sizes become 7567 and 2909 respectively for diabetes and dyslipidemia (from an original 9435).
+We have complete responses for diabetes, however only about a quarter of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad, and our sample sizes become 7567 and 2909 respectively for diabetes and dyslipidemia (from an original 9435 and 3134 of available response variables respectively). Most importantly, the class balance was maintained. 
 
 ## Examining our Target Variables
-We now perform exploratory data analysis on our variables of interest: type II diabetes and dyslipidemia.
+We now perform exploratory data analysis on our variables of interest: T2D and dyslipidemia.
 
 ### Diabetes
 We firstly would like to see the proportion of people in our data with our particular diseases. We collapse the DIABBC into a simple "does not have diabetes" (0) and "has diabetes" (1):
@@ -274,7 +275,7 @@ sugar1 = ggplot(melted_diab_sugars1, aes(x = Variable, y = Value, fill = `Has Di
 
 grid.arrange(fat1, fat2, sugar1, nrow=2)
 ```
-There are a few things to note here. Firstly, the data is skewed with a large number of outliers. With more time we would have liked to spend more time examining outliers to determine which are valid for the analysis, however we did not. Secondly, there appears to be a difference in the amount of sugar consumed by those with and without diabetes. However in terms of the dietary fats, it is difficult to spot a difference.
+There are a few things to note here. Firstly, the data is skewed with a large number of outliers. With more time we would have liked to examine boundary cases to rigorously test for outliers. Secondly, there appears to be a difference in the amount of sugar consumed by those with and without diabetes. However in terms of the dietary fats, it is difficult to discern a difference in this sample data, this is is a huge shortcoming in analysing the impact of fat intake on long term health outcomes.
 
 ### Dyslipidemia
 Again, we examine the counts of cases:
@@ -316,7 +317,7 @@ kable_styling(count_dys)
 
 ```
 
-This data is slightly more balanced, however may still be problematic.
+This data is slightly more balanced but did not pose as much of an issue as having a 90+\% majority of one class in the diabetes response variable.
 
 Again now we examine the data for those with and without the disease:
 
@@ -342,10 +343,11 @@ sugar1 = ggplot(melted_dyslip_sugars1, aes(x = Variable, y = Value, fill = `Has 
 grid.arrange(fat1, fat2, sugar1, nrow=2)
 
 ```
+
 There appears to be even less of a difference for dyslipidemia, suggesting this may be even harder to predict.
 
 ## Correlations among factors
-We now consider the relationships between our chosen factors. These factors were chosen based on expert knkowledge, but we plot a correlogram to look for multicollinearity which may cause problems in our models. Looking at the diabetes data (the larger of our two subsets as there is less missingness):
+We now consider the relationships between our chosen factors. These factors were chosen based on expert knowledge, but we plot a correlogram to look for multicollinearity which may cause problems in our models. Looking at the diabetes data (the larger of our two subsets as there is less missingness):
 
 ```{r, echo=FALSE, fig.align = "center"}
 
@@ -355,37 +357,37 @@ corrplot(corplot1, method = "color", type = "upper", tl.col="black",  addCoef.co
 
 ```
 
-There are again some interesting trends to be seen from this. Most variables are not corelated, except in certain sections. The fats generally have shigh corrleations, but this may be due to a 'doubling up'. For example, SATPER1 contains the percentage of energy intake from saturated fat and fatty acids, which is of course highly corrlated with TRANPER1, the percentage intake of trans-fatty acids. We also see CHOPER1, percentage of energy from carbohydrate, is highly correlated with energy sources such as sugars and starch, which makes sense. We also see the percentage energy from free sugars is highly correlated with that from added sugars.
+There are again some interesting trends to be seen from this. Most variables are not correlated, except in certain sections. The fats generally have high corrleations, but this may be due to a 'doubling up'. For example, SATPER1 contains the percentage of energy intake from saturated fat and fatty acids, which is of course highly corrlated with TRANPER1, the percentage intake of trans-fatty acids. We also see CHOPER1, percentage of energy from carbohydrate, is highly correlated with energy sources such as sugars and starch, which makes sense. We also see the percentage energy from free sugars is highly correlated with that from added sugars.
 
 Outside of this, there appears to be no notable correlation trends that will affect our analysis.
 
 # Models
-Although we directed our focus towards the relationship between sugars and diabetes/dyslipidemia, we also looked at the relationship between various fats to cholesterol levels as well, increasing our scope to 6 response variables. We only include the important results here, the detailed analysis can be found in the `./rmd` directory.  
+Although we directed our focus towards the relationship between sugars and diabetes/dyslipidemia, we also looked at the relationship between various fats to cholesterol levels as well, increasing our entire scope to 6 response variables. We only include the important results here, the detailed analysis can be found in the `./rmd` directory under the reading rmd files.
 
 
-## Choice of Models 
-The response variables analysed fall into 3 main categories. The diabetes response variable (DIABBC), cholesterol levels (CHOLNTR), LDL cholesterol variables (LDLNTR) and dyslipidemia (CVDMEDST), are all binary outcomes, and thus we can use various straightforward classification models for prediction. 
+## Choice of Models
+The response variables analysed fall into 3 main categories. The diabetes response variable (DIABBC), cholesterol levels (CHOLNTR), LDL cholesterol variables (LDLNTR) and dyslipidemia (CVDMEDST), are all binary outcomes, and thus we can use various straightforward classification models for prediction.
 
-The other 2 response variables, HDL cholesterol (HDLCHREB) and LDL cholesterol (LDLRESB) are all ordinal, categorical variables the represent a range of mmol/L concentrations from low to high. For these variables, we utilised a mixture of approaches, including the standard random forest (which we know does not reflect the relationship between the variables) as well as the more appropriate proportional odds models. 
+The other 2 response variables, HDL cholesterol (HDLCHREB) and LDL cholesterol (LDLRESB) are all ordinal, categorical variables that represent a range of mmol/L concentrations ranging from 1 to 6 and 8 respectively, representing low to high concentrations. For these variables, we utilised a mixture of approaches, including the standard random forest (which we know does not reflect the relationship between the variables) as well as the more appropriate proportional odds models.
 
-For the modelling section, we focus on predictive power whilst still leveraging the models for inference. The random forest method was chosen as it is an extremely powerful classifcation algorithm, capable of handling different types of data and adept at preventing overfitting through its ensemble method at the relatively small cost of an increase in bias. Fitting a random forests will also give an indication of which variables are the most significant in classification, and allows comparison with other models. 
+For the modelling section, we focus on predictive power whilst still leveraging the coefficients for inference. The random forest method was chosen as it is an extremely powerful classifcation algorithm, capable of handling different types of data and adept at preventing overfitting through its ensemble method at the relatively small cost of an increase in bias. Fitting a random forests will also give an indication of which variables are the most significant in classification, and allows comparison with other models.
 
 Logistic regression, alternatively, provides greater insight into the effect of each variable through its parameter estimates. While the error may be higher, we will more clearly be able to see the size and impact of the effect of each covariate. Specifically, this will enable us to examine which dietary fats and/or sugars positively and negatively impact a person's health and risk of chronic disease.
 
 
-## Summary of Modelling  
-The discussion begins with the less successful modelling outcomes for the binary response variables, namely LDLNTR and CHOLNTR. Despite utilising a variety of classification algorithms and hyperparameter tuning techniques, the outcome of the models were at best a random guess. This is due to the feature variables being indistinguishable between the 2 classes, resulting in a significant overlap in the n-dimensional hyperplane, making it impossible of the algorithms to learn the unique features of each class for classification. 
+## Summary of Modelling
+The discussion begins with the less successful modelling outcomes for the binary response variables, namely LDLNTR and CHOLNTR. Despite utilising a variety of classification algorithms and hyperparameter tuning techniques, the outcome of the models were at best a random guess. This is due to the feature variables being indistinguishable between the 2 classes, resulting in a significant overlap in the n-dimensional hyperplane, making it impossible of the algorithms to learn the unique features of each class for classification.
 
-At the end of the all the analysis, we visualised the densities of each feature variable grouped by class and unsurprisingly, the densities were almost identical in most cases except for the age variable. We further confirmed this by running a PCA to visualise the variabilities of the data on a 2D plan by class, and again, the classes were spread evenly across the 2 most important components. This meant that there was variance in the variables, but unfortunately the distinction between the 2 classes were insufficient for modelling.
+At the end of the all the analysis, we visualised the densities of each feature variable grouped by class and unsurprisingly, the densities were almost identical in most cases except for the age variable. We further confirmed this by running a PCA to visualise the variabilities of the data on a 2D plan by class, and again, the classes were spread evenly across the 2 most important components. This meant that there was variance in the data, but unfortunately the distinction between the 2 classes were insufficient for predictive modelling.
 
-For the ordinal LDL and HDL outcomes, the same issues persisted. Both the Random Forest model, which does not reflect the relationship between the response variables, as well as proportional odds models were overly conservative and failed to predict the boundary cases for both response variables. This is partly attributed to the indistinguishable densities, but also because the parallel regression assumption does not hold as well. However, using a partial proportional odds models did not yield any significant improvements in prediction.
+For the ordinal LDL and HDL outcomes, the same issues persisted. Both the Random Forest model, which does not reflect the relationship between the response variables, as well as proportional odds models were overly conservative and failed to predict the boundary cases for both response variables. This is partly attributed to the indistinguishable densities, but also because the parallel regression assumption does not hold. However, using a partial proportional odds models did not yield any significant improvements in prediction.
 
-Now we turn to discuss the 2 remaining binary response variables, diabetes and dyslipidemia. 
+Now we turn to discuss the 2 remaining binary response variables, diabetes and dyslipidemia.
 
 ### Diabetes
-For diabetes, the imbalance between the 2 classes required upsampling in order to achieve an effective balance for learning. We used a straight upsampling method and a more complicated SMOTE sampling method, that replicates the data by changing it slightly using a nearest neighbours approach. As a baseline, we also tried penalised-SVM on the original, imbalanced dataset which could reduce the overall FNR and FPR despite hyperparameter tuning. 
+For diabetes, the imbalance between the 2 classes required upsampling in order to achieve an effective balance for learning. We used a straight upsampling method and a more complicated SMOTE sampling method, that replicates the data by changing it slightly using a nearest neighbours approach. As a baseline, we also tried penalised-SVM on the original, imbalanced dataset which could reduce the overall FNR and FPR despite hyperparameter tuning.
 
-The SMOTE upsampling method was the most successful. We witheld a test set from the original data as evaluation, and used a train-test split approach to train the models. 
+The SMOTE upsampling method was the most successful. We witheld a test set from the original data as evaluation.
 
 We were able to achieve an acceptable FNR & FPR trade-off of $\approx$ 30\% respectively after tuning the probability threshold hyperparameter for the logistic regression model.
 
@@ -431,7 +433,7 @@ for (i in 1:length(probs_tuning) ){
 tuning_results <- data.frame(cbind(probs_tuning, "accuracy" = accuracy*100, "FPR" = fpr*100, "FNR" = fnr*100, "F1" = f1))
 
 ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="orange", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %") +
-  theme_minimal()
+  theme_minimal() + ggtitle("Tuning Probability Threshold for optimal FPR-FNR for Diabetes")
 
 ```
 
@@ -450,7 +452,11 @@ print(paste("F1 score: ", F1_Score(test_diabetes$DIABBC, diabetes_true_test)))
 
 ```
 
-```{r}
+Whether the trade-off here is acceptable depends on the context of the problem. We can adjust the probability threshold to establish our desired trade-off for Type I and Type II errors. 
+
+The logistic regression model's performance in balancing the 2 types of errors was commendable. In comparison, the random forest model was not able to achieve the same performance for the FNR. 
+
+```{r, echo=FALSE}
 
 set.seed(10)
 
@@ -467,18 +473,12 @@ diabetes_rf$variable.importance %>%
   dplyr::arrange(desc(x)) %>%
   dplyr::top_n(25) %>%
   ggplot(aes(reorder(names, x), x)) +
-  geom_col(fill="orange") + theme_minimal() +
+  geom_col(fill="orange") + 
   coord_flip() +
-  ggtitle("Most important variables for Diabetes")
+  ggtitle("Most important variables for Diabetes") + 
+  theme_minimal()
 
 ```
-
-```{r}
-
-diabetes_rf$variable.importance
-
-```
-
 
 ```{r, echo=FALSE}
 
@@ -494,10 +494,8 @@ print(paste("F1 score: ", F1_Score(test_diabetes$DIABBC, diabetes_true_test_rf$p
 
 ```
 
-The random forest model was not able to achieve the same performance for the FNR. 
-
 ### Dyslipidemia
-With dyslipidemia, the classes were more balanced, meaning that using upsampling techniques were not necessary. In this case, the logistic regression were able to find a compromise of $\approx$30\% given the optimal probability threshold used to classify the outcomes. 
+With dyslipidemia, the classes were more balanced, meaning that using upsampling techniques were not necessary. In this case, the logistic regression were able to find a compromise of $\approx$ 30\% given the optimal probability threshold used to classify the outcomes.
 
 ```{r, echo=FALSE}
 
@@ -534,17 +532,17 @@ for (i in 1:length(probs_tuning) ){
 tuning_results <- data.frame(cbind(probs_tuning, accuracy, fpr, fnr, f1))
 
 ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="orange", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %") +
-  theme_minimal()
+  theme_minimal() + ggtitle("Tuning Probability Threshold for optimal FPR-FNR for Dyslipidemia")
 
 
 ```
 
-```{r}
+```{r, echo=FALSE}
 
 prob_threshold = 0.70
 
 dyslip_test_predictions_logit <- predict(logistic_regression, newdata=test_dyslip, type='response')
-dyslip_test_predictions_logit <- ifelse(test_predictions_logit > prob_threshold, 1, 0)
+dyslip_test_predictions_logit <- ifelse(dyslip_test_predictions_logit > prob_threshold, 1, 0)
 
 dyslip_cm <- table(test_dyslip$CVDMEDST, dyslip_test_predictions_logit)
 dyslip_cm
@@ -556,7 +554,7 @@ print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, dyslip_test_predictions
 
 ```
 
-The random forest model results in a high FPR, and thus its performance may be less desirable if your aim is to reduce Type I errors. 
+Once again, the random forest model does not reduce the FPR and FNR rates as optimally compared to logistic regression. This model has a high FPR, and thus its performance may be less desirable if your aim is to reduce Type I errors.
 
 ```{r, echo=FALSE}
 
@@ -572,12 +570,13 @@ dyslip_rf$variable.importance %>%
   dplyr::top_n(30) %>%
   ggplot(aes(reorder(names, x), x)) +
   geom_col(fill = "orange") +
-  coord_flip() + theme_minimal()
-  ggtitle("Most important variables for Dyslipidemia")
+  coord_flip() + 
+  ggtitle("Most important variables for Dyslipidemia") + 
+  theme_minimal()
 
 ```
 
-```{r}
+```{r, echo=FALSE}
 
 dyslip_true_test_rf <- predict(dyslip_rf, data = test_dyslip)
 dyslip_cm <- table(test_dyslip$CVDMEDST, dyslip_true_test_rf$predictions)
@@ -592,31 +591,32 @@ print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, dyslip_true_test_rf$pre
 
 # Discussion
 
-Our results were interesting but nowhere near as consistent with the nutritional literature as we would have liked. The most significant result was that age and BMI were extremely important in affecting both diabetes and dyslipidemia. This is reflected in both the logistic regression output and the importance measure from the random forest. This is not unexpected, but it is reassuring to see this reflected in the output.  
+Our results were interesting but in some areas inconsistent with the nutritional literature. The most significant result was that age and BMI were extremely important in affecting both diabetes and dyslipidemia. This is reflected in both the logistic regression output and the importance measure from the random forest. This is not unexpected, but it is reassuring to see this reflected in our results.
 
-This is unfortunately where the nice results end. For diabetes, our logistic regression model identified a number of significant factors. The factors that contributed to having diabetes (read from the parameter estimates) were higher BMI, being older, and greater alpha linoleic acid. The factors that help reduce the chances of diabetes are polyunsaturated fat, blood pressure, niacin, fibre, alcohol and free sugar. These is interesting and does not entirely agree with the literature (alcohol prevents diabetes?), but the effect of free sugar is good. Although sugar as a whole contributes to having diabetes, replacing added sugars with free sugars (the better alternative) does help to reduce the chances, as we have observed. 
+For diabetes, our logistic regression model identified a number of significant factors. The factors that contributed to having diabetes (read from the parameter estimates) were higher BMI, being older, and greater alpha linoleic acid. The factors that help reduce the chances of diabetes are polyunsaturated fat, blood pressure, niacin, fibre, alcohol and free sugar. These are interesting and does not entirely agree with the literature (alcohol prevents diabetes?), but the effect of free sugar is consistent. Although sugar as a whole contributes to having diabetes, replacing added sugars with free sugars (the better alternative) does help to reduce health risks, as we have observed.
 
 The random forest model identified the most significant factors after age and BMI to be blood pressure, time spent sitting and the amount of free sugars and added sugars. The relative difference in significance became much smaller after this point. This somewhat agrees with the logistic regression, but by nature the random forest is less interpretable.
 
-Our predictions using both the logistic regression and the random forest were encouraging but not ideal. Using the logistic regression, we could achieve a small false positive and false negative rate. This outperformed the random forest, which struggled to deal with the class imbalance. 
+The logistic regression was able to make a trade-off but both models were useful in reflecting the literature. Using the logistic regression, we could achieve a relatively small false positive and false negative rate. This outperformed the random forest, which struggled to deal with the class imbalance for diabetes but still did not achieve the same optimality for dyslipidemia. 
 
-For dyslipidemia, the logistic regression again identified BMI and age as factors associated with dyslipidemia. Trans fat and blood pressure were on the brink of significance in contributing to dyslipidemia, while again alcohol was apparently associated with reducing chances. 
-The most important factors identified by the random forest were 
+For dyslipidemia, the logistic regression again identified BMI and age as factors associated with dyslipidemia. The p-values for Trans fat and blood pressure were on the brink of significance, while again alcohol was apparently associated with reducing risk. The most important factors identified by the random forest were, after age and BMI, blood pressure and fibre intake, as well as sedentary activity. 
 
-There are a number of reasons for why the results may have turned out this way. Firstly, as seen in our exploratory analysis there didn’t appear to be any significant differences in the micronutrient intake of those with and without these NCD’s. Therefore, of course these variables would not flag as significant because in our real world sample, there was actually no difference.
+There are a number of reasons for why the results may have turned out this way. Firstly, as seen in our exploratory analysis there didn’t appear to be any significant differences in the micronutrient intake of those with and without these NCD’s. Therefore, these variables would not flag as significant because in our real world sample, there was actually no difference.
 
-Alcohol registering as a significant variable in our analysis was interesting, but is probably due to its skewed distribution. There is a high number of sampling zeros, due to the fact that many adults do not drink. Alcohol, along with many of the variables, also has a high number of outliers that we did not address which may be causing the strange results.
+Alcohol registering as a significant variable in our analysis was interesting, but is probably due to its skewed distribution. There is a high number of sampling zeros, due to the fact that many adults do not drink. Alcohol, along with many of the other variables, also has a high number of outliers that we did not address which may be causing the strange results.
 
-Additionally, as stated earlier the class imbalance makes classification hard. Particularly in diabetes, there is such a low proportion of people with diabetes relative to the sample size that it is hard to find exactly what it is that distinguishes that class from another. With more data points or a more balanced design, it may be possible to gain greater insight. 
+Additionally, as stated earlier the class imbalance makes classification hard. Particularly in diabetes, there is such a low proportion of people with diabetes relative to the sample size that it is hard to find exactly what it is that distinguishes that class from another. Although SMOTE was able to overcome this issue, there were still limitations as the synthetic data are still in proximity to the original data, and may have greatly increased bias. With more data points or a more balanced design, it may be possible to gain greater insight.
 
-# Conclusion 
+# Conclusion
 
-In conclusion, further analysis should be undertaken to critically evaluate the role of these fats and carbohydrates on diabetes and dyslipidemia. As expected, age and BMI were significant factors but we did not strongly observe the effects of certain micronutrients we expected from the literature. We did see positive results for sugars, in that natural sugars contributed to the non-prevalence of disease (as it is the healthier option to added sugars). And finally, it is possible to predict if a person has type II diabetes or dyslipidemia from their nutritional habits.
+In conclusion, further analysis should be undertaken to critically evaluate the role of these fats and carbohydrates on diabetes and dyslipidemia. As expected, age and BMI were significant factors but we did not strongly observe the effects of certain micronutrients we expected from the literature. We did see positive results for sugars, in that natural sugars contributed to the non-prevalence of disease (as it is the healthier option compared to added sugars). And finally, it is possible to predict if a person has type II diabetes or dyslipidemia from their nutritional habits.
+
+\newpage
 
 # References
 
 \begin{enumerate}
-\item Daar AS, Singer PA, Persad DL, Pramming SK, Matthews DR, Beaglehole R et al. Grand challenges in chronic non-communicable diseases: The top 20 policy and research priorities for conditions such as diabetes, stroke and heart disease. Nature. 2007 Nov;450(22)494-496.  
+\item Daar AS, Singer PA, Persad DL, Pramming SK, Matthews DR, Beaglehole R et al. Grand challenges in chronic non-communicable diseases: The top 20 policy and research priorities for conditions such as diabetes, stroke and heart disease. Nature. 2007 Nov;450(22)494-496.
 \item Marks GC, Coyne T, Pang G. Type 2 Diabetes Costs in Australia – the potential impact of changes in diet, physical activity and levels of obesity. Queensland: The University of Queensland, Australian Food and Nutrition Monitoring Unit; 2001. 42 p. Report No.: 1.
 \item The Heart Foundation of Australia. Cardiovascular disease fact sheet [Internet]. Phillip ACT: The Heart Foundation of Australia; n.d. [updated n.d.; cited 2018 Oct 20]. Available from: https://www.heartfoundation.org.au/about-us/what-we-do/heart-disease-in-australia/cardiovascular-disease-fact-sheet
 \item Grover SA, Kauache M, Rempel P, Joseph L, Dawes M, Lau DCW et al. Years of life lost and healthy life-years lost from diabetes and cardiovascular disease in overweight and obese people: a modelling study. The Lancet. 2014 Dec;3(2):114-22.

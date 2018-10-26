@@ -5,6 +5,15 @@ date: "25 October 2018"
 output: html_document
 ---
 
+## Summary
+
+Much like its fats-analysis counterpart, the overwhelming class imbalance requires upsampling and techniques again. Upsampling the data has resulted in many of the predictor variables becoming significant, which should be taken with a grain of salt given that the samples are replicated with slight modifications (as in SMOTE).
+
+The only substantial improvement with prediction occurred when using the SMOTE algorithm for upsampling. We were able to achieve a $\approx$20% FNR for a 40% increase in FPR, which is reasonable given the imbalanced test set used to evaluate the algorithm. Penalised-SVM could not achieve the same FNR despite tuning parameters, whilst Random Forests were substantial worst with a $\approx$70% FNR, despite keeping the FPR under 10%
+
+
+
+
 ## Predicting Diabetes Mellitus
 
 ```{r, include=FALSE}
@@ -234,7 +243,7 @@ class_count[1]/(class_count[1]+class_count[2])
 
 ```
 
-With a null accuracy of ~94%, it is going to be difficult to use the standard classification algorithms to acheive any improvements in prediction accuracy.
+With a null accuracy of $\approx$94%, it is going to be difficult to use the standard classification algorithms to acheive any improvements in prediction accuracy.
 
 Later on we will attempt to use different methods such as upsampling and penalised-SVM. This may improve our results. 
 
@@ -611,7 +620,7 @@ y = diabetes_no_na$DIABBC
 mutate(diabetes_no_na, DIABBC = ifelse(DIABBC == "0", 0, 1))
 
 logistic_regression = glm(y~., family=binomial, data=X)
-# summary(logistic_regression)
+summary(logistic_regression)
 
 ```
 
@@ -737,7 +746,7 @@ table_orig_test[1]/sum(table_orig_test)*100
 
 ```
 
-Now we have a considerable reduction in null accuracy, with ~64%.  
+Now we have a considerable reduction in null accuracy, with $\approx$64%.  
 
 ```{r}
 
@@ -1217,8 +1226,6 @@ F1_Score(test_diabetes$DIABBC, test_pred)
 
 Using the penalised-SVM, we were able to reduce the number of false negatives by weighting the classes differently. The analysis suggests that there are different methods of finetuning the FPR and FNR depending on your problem and these models all have their strengths and weaknesses. 
 
-We wrap up this analysis with a revisit to upsampling, but this time we will investigate the __synthetic minority oversampling technique__ (SMOTE)
-
 
 
 
@@ -1463,7 +1470,7 @@ The GLMs for SMOTE produce a lower Type II error but comparatively the Type I er
 
 ```{r}
 
-probs_tuning <- seq(0.05, 0.95, by=0.01)
+probs_tuning <- seq(0.05, 0.95, by=0.05)
 
 length(probs_tuning)
 

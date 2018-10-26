@@ -7,8 +7,7 @@ output: html_document
 
 ## Summary
 
-
-
+Dyslipidemia is a binary response outcome that is highly correlated with LDL and HDL cholesterol in the body. The results of the analysis reflect this, with the random forest model indicating that the ordinal LDL & HDL variable being the 2 biggest influencers of dyslipidemia classification respectively. The 3 models, with parameter tuning each achieved between 80-85% accuracy ahead of the $\approx$70% null accuracy, with Random Forests just beating out the other 2 by 1-2%. 
 
 ## Predicting Abnormal Levels of Dyslipidemia
 
@@ -628,11 +627,6 @@ print(paste('Accuracy: ',1-misClasificError))
 print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, test_predictions_logit, positive=1)))
 
 ```
-
-
-Logistic regression performs rather poorly, with tuning of the threshold probability p leading to no substantial improvement in both the classification accuracy nor the overall F1_score. 
-
-It seems that Random Forest is vastly superior to the other classification algorithms for this dataset. 
 
 Now let's try to conduct some cross-validation on GLMs. 
 

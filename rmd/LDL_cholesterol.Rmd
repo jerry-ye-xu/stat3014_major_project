@@ -143,6 +143,8 @@ Let's firstly check how much data we have.
 
 ```{r}
 
+nutm = filter(nutm, AGEC > 17)
+
 sum(is.na(nutm["LDLNTR"]))
 table(nutm["LDLNTR"])
 
