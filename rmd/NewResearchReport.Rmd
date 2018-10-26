@@ -476,6 +476,13 @@ diabetes_rf$variable.importance %>%
 
 ```
 
+```{r}
+
+diabetes_rf$variable.importance
+
+```
+
+
 ```{r, echo=FALSE}
 
 diabetes_true_test_rf <- predict(diabetes_rf, data = test_diabetes)
@@ -539,16 +546,16 @@ ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="orange", size=2.5
 
 prob_threshold = 0.70
 
-test_predictions_logit <- predict(logistic_regression, newdata=test_dyslip, type='response')
-test_predictions_logit <- ifelse(test_predictions_logit > prob_threshold, 1, 0)
+dyslip_test_predictions_logit <- predict(logistic_regression, newdata=test_dyslip, type='response')
+dyslip_test_predictions_logit <- ifelse(test_predictions_logit > prob_threshold, 1, 0)
 
-dyslip_cm <- table(test_dyslip$CVDMEDST, test_predictions_logit)
+dyslip_cm <- table(test_dyslip$CVDMEDST, dyslip_test_predictions_logit)
 dyslip_cm
 
 print(paste("Accuracy : ", (dyslip_cm[1] + dyslip_cm[4])/sum(dyslip_cm) ))
 print(paste("FPR : ", dyslip_cm[3]/(dyslip_cm[1] + dyslip_cm[3]) ))
 print(paste("FNR : ", dyslip_cm[2]/(dyslip_cm[2] + dyslip_cm[4]) ))
-print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, dyslip_true_test_rf$predictions) ))
+print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, dyslip_test_predictions_logit) ))
 
 ```
 
@@ -569,7 +576,7 @@ dyslip_rf$variable.importance %>%
   ggplot(aes(reorder(names, x), x)) +
   geom_col(fill = "orange") +
   coord_flip() + theme_minimal()
-  ggtitle("Most important variables for Diabetes")
+  ggtitle("Most important variables for Dyslipidemia")
 
 ```
 
