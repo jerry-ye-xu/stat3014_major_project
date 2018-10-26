@@ -27,6 +27,15 @@ This collaborative effort between nutrition and statistics departments aims to a
 
 We found \textbf{results}
 
+## Shortcomings
+\begin{itemize}
+\item There was significant imbalance in the data. Most people reported not having diabetes for example, and this class imbalance caused our classifiers to struggle. 
+\item There were large amounts of missingness in the data. With greater sample size we may have seen more pronounced effects, however even despite the wealth of data here it may not have been enough
+\item In doing prediction, there is the implicit assumption that a person is living their life as if they did not know their diagnosis. It is reasonable to assume that someone upon learning they are diabetic is likely to change their eating habits, thus meaning their consumption data is not representative of the habits that led to them becoming diabetic in the first place. 
+\item ?
+
+\end{itemize}
+
 # Context
 
 ```{r, echo=FALSE, include=FALSE}
@@ -186,8 +195,77 @@ kable_styling(kabtab)
 
 We have complete responses for diabetes, however only about a quarter of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad.
 
-## Dietary Sugars and Fats
-We now examine the variables we are most interested in as predictors. Specifically, we plot the data grouped by the presence or absence of the particular disease in question.
+## Examining our Target Variables
+We now perform exploratory data analysis on our variables of interest: type II diabetes and dyslipidemia.
+
+### Diabetes
+We firstly aim to see if there are any differences in the consumption of the micronutrients and sugars of interest:
+
+```{r, include=FALSE, echo=FALSE}
+diabetes_response = c("DIABBC")
+diabetes_variables = c("BMISC", "AGEC", "EXLWTBC", 
+                       # "SF2SA1QN", "INCDEC",
+                       # "HSUGBC", 
+                       #"FATT1", 
+                       "SUGART1", 
+                       "FATPER1", "LAPER1", "ALAPER1", 
+                       "CHOPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       "ADTOTSE",
+                       # "SEX"
+                       # "SMKSTAT", 
+                       "SYSTOL", 
+                       "B3T1",
+                       # "FASTSTAD", 
+                       #"HDLCHREB", 
+                       # "LDLNTR", 
+                       #"LDLRESB",
+                      "CHOWSAT1", 
+                      "STARCHT1", 
+                      # "FIBRET1", 
+                      "FIBRPER1", 
+                      #"ALCT1", 
+                      "ALCPER1", 
+                      #"CHOPER1", 
+                      "PEFRESD1", "PEADDSD1"
+                       )
+diabetes = nutm[c(diabetes_response, diabetes_variables)]
+diabetes = diabetes[diabetes$DIABBC != 3, ]
+table(diabetes$DIABBC)
+diabetes <- mutate(diabetes, DIABBC = ifelse(DIABBC == 5, "0", "1"))
+diabetes$DIABBC <- as.factor(diabetes$DIABBC)
+head(diabetes)
+
+sum(is.na(nutm[diabetes_response]))
+diabetes_no_na <- diabetes[complete.cases(diabetes), ]
+dim(diabetes_no_na)
+class_count <- table(diabetes_no_na$DIABBC)
+class_count
+```
+
+```{r, echo=FALSE, fig=TRUE, message=FALSE}
+diabfats1 = diabetes_no_na[,c("DIABBC","LAPER1","SATPER1","MONOPER1","POLYPER1")]
+diabfats2 = diabetes_no_na[,c("DIABBC","ALAPER1", "TRANPER1")]
+
+diabsugars1 = diabetes_no_na[, c("DIABBC","PEFRESD1", "PEADDSD1")]
+
+melted_diab_fats1 = melt(diabfats1)
+colnames(melted_diab_fats1) = c("Has Diabetes", "Variable", "Value")
+fat1 = ggplot(melted_diab_fats1, aes(x = Variable, y = Value, fill = `Has Diabetes`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Fats") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
+
+melted_diab_fats2 = melt(diabfats2)
+colnames(melted_diab_fats2) = c("Has Diabetes", "Variable", "Value")
+fat2 = ggplot(melted_diab_fats2, aes(x = Variable, y = Value, fill = `Has Diabetes`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Fats") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
+
+melted_diab_sugars1 = melt(diabsugars1)
+colnames(melted_diab_sugars1) = c("Has Diabetes", "Variable", "Value")
+sugar1 = ggplot(melted_diab_sugars1, aes(x = Variable, y = Value, fill = `Has Diabetes`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Sugars") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
+
+grid.arrange(fat1, fat2, sugar1, nrow=2)
+```
+There are a few things to note here. Firstly, the data is skewed with a large number of outliers. With more time we would have liked to spend more time examining outliers to determine which are valid for the analysis, however we did not. Secondly, there appears to be a difference in the amount of sugar consumed by those with and without diabetes. However in terms of the dietary fats, it is difficult to spot a difference.
+
+### Dyslipidemia
 
 ```{r, include=FALSE, echo=FALSE}
 #DYSLIP
@@ -251,7 +329,7 @@ sugar1 = ggplot(melted_dyslip_sugars1, aes(x = Variable, y = Value, fill = `Has 
 
 grid.arrange(fat1, fat2, sugar1, nrow=2)
 ```
-There are a few things to note here. Firstly, the data is skewed with a large number of outliers. With more time we would have liked to spend more time examining outliers to determine which are valid for the analysis, however we did not. Secondly, we note there does not appear to be significant difference between these predictors, which suggests predicting dyslipidemia will be difficult. 
+There appears to be even less of a difference for dyslipidemia, suggesting this may be even harder to predict.
 
 (boxplots of fats with and without diabetes, dyslipidemia)
 (boxplots of sugars with and without diabetes, dyslipidemia)
