@@ -32,7 +32,6 @@ We found \textbf{results}
 \item There was significant imbalance in the data. Most people reported not having diabetes for example, and this class imbalance caused our classifiers to struggle. 
 \item There were large amounts of missingness in the data. With greater sample size we may have seen more pronounced effects, however even despite the wealth of data here it may not have been enough
 \item In doing prediction, there is the implicit assumption that a person is living their life as if they did not know their diagnosis. It is reasonable to assume that someone upon learning they are diabetic is likely to change their eating habits, thus meaning their consumption data is not representative of the habits that led to them becoming diabetic in the first place. 
-\item ?
 
 \end{itemize}
 
@@ -116,8 +115,6 @@ nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
 nutm = nutm_orig[all_variables]
 ```
 
-We'll need to reprocess some of the variables as factors. 
-
 ```{r, include=FALSE}
 categoricalList <- c()
 categoricalList[ 1 ] <- FALSE #  BMISC 
@@ -199,7 +196,7 @@ We have complete responses for diabetes, however only about a quarter of respond
 We now perform exploratory data analysis on our variables of interest: type II diabetes and dyslipidemia.
 
 ### Diabetes
-We firstly aim to see if there are any differences in the consumption of the micronutrients and sugars of interest:
+We firstly would like to see the proportion of people in our data with our particular diseases. We collapse the DIABBC into a simple "does not have diabetes" (0) and "has diabetes" (1):
 
 ```{r, include=FALSE, echo=FALSE}
 diabetes_response = c("DIABBC")
@@ -240,9 +237,17 @@ sum(is.na(nutm[diabetes_response]))
 diabetes_no_na <- diabetes[complete.cases(diabetes), ]
 dim(diabetes_no_na)
 class_count <- table(diabetes_no_na$DIABBC)
-class_count
+count_mat = matrix(class_count, nrow=1)
+colnames(count_mat) = c("Does not have diabetes", "Has diabetes"); rownames(count_mat) = "Number of instances"
 ```
 
+```{r, echo=FALSE}
+count_diab = kable(count_mat)
+kable_styling(count_diab)
+```
+There is a significant imbalance in the number of adults surveyed with and without diabetes. This will be an issue when performing classification later on.
+
+We then aim to see if there are any differences in the consumption of the micronutrients and sugars of interest:
 ```{r, echo=FALSE, fig=TRUE, message=FALSE}
 diabfats1 = diabetes_no_na[,c("DIABBC","LAPER1","SATPER1","MONOPER1","POLYPER1")]
 diabfats2 = diabetes_no_na[,c("DIABBC","ALAPER1", "TRANPER1")]
@@ -266,6 +271,7 @@ grid.arrange(fat1, fat2, sugar1, nrow=2)
 There are a few things to note here. Firstly, the data is skewed with a large number of outliers. With more time we would have liked to spend more time examining outliers to determine which are valid for the analysis, however we did not. Secondly, there appears to be a difference in the amount of sugar consumed by those with and without diabetes. However in terms of the dietary fats, it is difficult to spot a difference.
 
 ### Dyslipidemia
+Again, we examine the counts of cases:
 
 ```{r, include=FALSE, echo=FALSE}
 #DYSLIP
@@ -307,7 +313,20 @@ dyslipidemia$CVDMEDST <- as.factor(dyslipidemia$CVDMEDST)
 dyslipidemia_no_na <- dyslipidemia[complete.cases(dyslipidemia), ]
 dim(dyslipidemia_no_na)
 head(dyslipidemia_no_na)
+
+class_count <- table(dyslipidemia$CVDMEDST)
+count_mat_dys = matrix(class_count, nrow=1)
+colnames(count_mat_dys) = c("Does not have dyslipidemia", "Has dyslipidemia"); rownames(count_mat_dys) = "Number of instances"
 ```
+
+```{r, echo=FALSE}
+count_dys = kable(count_mat_dys)
+kable_styling(count_dys)
+```
+
+This data is slightly more balanced, however may still be problematic.
+
+Again now we examine the data for those with and without the disease:
 
 ```{r, echo=FALSE, fig=TRUE, message=FALSE}
 dyslipfats1 = dyslipidemia_no_na[,c("CVDMEDST","LAPER1","SATPER1","MONOPER1","POLYPER1")]
