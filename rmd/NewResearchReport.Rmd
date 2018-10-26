@@ -5,6 +5,7 @@ output: pdf_document
 ---
 
 ```{r, include=FALSE}
+
 #PACKAGES
 #install.packages(ggplot2)
 #install.packages()
@@ -12,6 +13,7 @@ output: pdf_document
 #library(ggplot2)
 #library()
 #library()
+
 ```
 
 
@@ -30,6 +32,7 @@ We found \textbf{results}
 # Context
 
 ```{r, echo=FALSE, include=FALSE}
+
 #PACKAGES USED IN THIS ANALYSIS. TO INSTALL SIMPLY UNCOMMENT THE LINE.
 
 # install.packages("tidyverse")
@@ -105,11 +108,13 @@ response_variables = c("CHOLNTR", "HDLCHREB", "DIABBC", "HCHOLBC", "HYPBC", "CVD
 all_variables = c(feature_variables, response_variables)
 nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
 nutm = nutm_orig[all_variables]
+
 ```
 
 We'll need to reprocess some of the variables as factors. 
 
 ```{r, include=FALSE}
+
 categoricalList <- c()
 categoricalList[ 1 ] <- FALSE #  BMISC 
 categoricalList[ 2 ] <- FALSE #  AGEC 
@@ -163,6 +168,7 @@ for (i in 1:length(categoricalList)) {
   }
 }
 head(nutm)
+
 ```
 
 # Exploratory Data Analysis
@@ -197,10 +203,8 @@ dyslipidemia_variables = c("BMISC", "AGEC", "EXLWTBC",
                        "FATPER1", "LAPER1", "ALAPER1", 
                        "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
                        "ADTOTSE",
-                       "SYSTOL", 
-                       "B3T1",
-                       "CHOWSAT1", "STARCHT1", "FIBRPER1", 
-                       "ALCPER1", 
+                       "SYSTOL", "B3T1",
+                       "CHOWSAT1", "STARCHT1", "FIBRPER1", "ALCPER1",     
                        "PEFRESD1", "PEADDSD1"
                        )
 dyslipidemia = nutm[c(dyslipidemia_response, dyslipidemia_variables)]
@@ -209,8 +213,38 @@ dyslipidemia <- mutate(dyslipidemia, CVDMEDST = ifelse(CVDMEDST == 4, "0", "1"))
 dyslipidemia$CVDMEDST <- as.factor(dyslipidemia$CVDMEDST)
 
 dyslipidemia_no_na <- dyslipidemia[complete.cases(dyslipidemia), ]
+
 dim(dyslipidemia_no_na)
 head(dyslipidemia_no_na)
+table(dyslipidemia_no_na$CVDMEDST)
+
+
+diabetes_response = c("DIABBC")
+diabetes_variables = c("BMISC", "AGEC", "EXLWTBC", 
+                       "SUGART1", "CHOPER1", 
+                       "FATPER1", "LAPER1", "ALAPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       "ADTOTSE",
+                       "SYSTOL", "B3T1",
+                      "CHOWSAT1", "STARCHT1", "FIBRPER1", "ALCPER1", 
+                      "PEFRESD1", "PEADDSD1"
+                       )
+
+diabetes = nutm[c(diabetes_response, diabetes_variables)]
+diabetes = diabetes[diabetes$DIABBC != 3, ]
+
+table(diabetes$DIABBC)
+
+diabetes <- mutate(diabetes, DIABBC = ifelse(DIABBC == 5, "0", "1"))
+diabetes$DIABBC <- as.factor(diabetes$DIABBC)
+
+diabetes_no_na <- diabetes[complete.cases(diabetes), ]
+
+dim(diabetes_no_na)
+head(dyslipidemia_no_na)
+table(diabetes_no_na$DIABBC)
+
+
 ```
 
 ```{r, echo=FALSE, fig=TRUE, message=FALSE}
@@ -254,6 +288,50 @@ The discussion begins with the less successful modelling outcomes for the binary
 At the end of the all the analysis, we visualised the densities of each feature variable grouped by class and unsurprisingly, the densities were almost identical in most cases except for the age variable. We further confirmed this by running a PCA to visualise the variabilities of the data on a 2D plan by class, and again, the classes were spread evenly across the 2 most important components. This meant that there was variance in the variables, but unfortunately the distinction between the 2 classes were insufficient for modelling.
 
 In analysing diabetes, we were able to achieve an acceptable FNR & FPR trade-off of $\approx$30% respectively after tuning the probability threshold hyperparameter for the logistic regression model. The random forest model evaluated blood pressure and sedentary activity, along with percentage fibre intake and added sugars as the most important variables, and this was
+
+```{r}
+
+sample_sub = sample.split(diabetes_no_na$DIABBC, SplitRatio = .7)
+train_diabetes = subset(diabetes_no_na, sample_sub == TRUE)
+test_diabetes  = subset(diabetes_no_na, sample_sub == FALSE)
+
+SMOTE_data <- SMOTE(train_diabetes[, -1], train_diabetes[, 1], 
+      dup_size=10, K = 7)
+
+names(SMOTE_data$data)[names(SMOTE_data$data) == 'class'] <- "DIABBC"
+
+probs_tuning <- seq(0.05, 0.95, by=0.05)
+
+length(probs_tuning)
+
+accuracy <- c()
+fpr <- c()
+fnr <- c()
+f1 <- c()
+
+for (i in 1:length(probs_tuning) ){
+  
+    test_tuning_logit <- predict(logistic_regression, newdata=test_diabetes, type='response')
+    test_tuning_logit <- ifelse(test_tuning_logit > probs_tuning[i], 1, 0)
+    
+    table_results <- table(test_diabetes$DIABBC, test_tuning_logit)
+    
+    #print(paste("Probability threshold: ", probs_tuning[i]))
+    #print(table_results)
+    
+    accuracy[i] <- (table_results[1] + table_results[4])/sum(table_results)
+    fpr[i] <- table_results[3]/(table_results[1] + table_results[3])
+    fnr[i] <- table_results[2]/(table_results[2] + table_results[4])
+    #f1[i] <- F1_Score(test$CVDMEDST, test_tuning_logit, positive=1) 
+}
+
+tuning_results <- data.frame(cbind(probs_tuning, "accuracy" = accuracy*100, "FPR" = fpr*100, "FNR" = fnr*100, "F1" = f1))
+tuning_results
+
+ggplot(tuning_results, aes(x=fnr, y=fpr)) + geom_point(colour="red", size=2.5) + xlab("False Positive Rate %") + ylab("False Negative Rate %")
+
+```
+
 
 We will use a number of classifiers to attempt to predict which patients have the non-communicable diseases of high cholsterol, type II diabetes, hypertension and dyslipidemia. We used a number of classifiers, however the two main classifiers we focus on are generalised linear models (logistic regressions) and random forests.
  
