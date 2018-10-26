@@ -552,7 +552,7 @@ print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, dyslip_true_test_rf$pre
 
 ```
 
-The random forest model produced too much 
+The random forest model results in a high FPR, and thus its performance may be less desirable if your aim is to reduce Type I errors. 
 
 ```{r, echo=FALSE}
 
@@ -585,7 +585,6 @@ print(paste("FNR : ", dyslip_cm[2]/(dyslip_cm[2] + dyslip_cm[4]) ))
 print(paste("F1 score: ", F1_Score(test_dyslip$CVDMEDST, dyslip_true_test_rf$predictions) ))
 
 ```
-
 
 # Discussion
 
