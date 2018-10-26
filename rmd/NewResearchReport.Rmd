@@ -1,6 +1,6 @@
 ---
 title: "Predicting Type II Diabetes and Dyslipidemia in Adults using the Composition of Dietary Fat and Carbohydrates"
-author: "Ian Astalosh (450376261), Cassie Brooks, Catherine Chen, Jerry Xu, Leon Yao"
+author: "Ian Astalosh (450376261), Cassie Brooks (440151111), Catherine Chen (430257760), Jerry Xu (311304397), Leon Yao (460364601)"
 output: pdf_document
 ---
 
