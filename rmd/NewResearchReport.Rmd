@@ -28,9 +28,8 @@ This collaborative effort between nutrition and statistics departments aims to a
 We found \textbf{results}
 
 # Context
-NUTM intro
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, include=FALSE}
 #PACKAGES USED IN THIS ANALYSIS. TO INSTALL SIMPLY UNCOMMENT THE LINE.
 
 # install.packages("tidyverse")
@@ -56,8 +55,10 @@ NUTM intro
 # install.packages("randomForestSRC") # basic RF package
 # install.packages("ranger")
 # install.packages("kableExtra")
+# install.packages("kable")
+# install.packages("reshape2")
 
-library(tidyverse)
+suppressMessages(library(tidyverse))
 library(tidyr)
 library(dplyr)
 library(broom) # for tidy()
@@ -83,6 +84,8 @@ library(ggbiplot)
 # library(rsample)      # data splitting - not available for the most recent version of R
 library(randomForestSRC) # basic RF package
 library(ranger)
+library(kableExtra)
+library(reshape2)
 
 source("./functions/cv_knn.R")
 source("./functions/cv_da.R")
@@ -106,7 +109,7 @@ nutm = nutm_orig[all_variables]
 
 We'll need to reprocess some of the variables as factors. 
 
-```{r}
+```{r, include=FALSE}
 categoricalList <- c()
 categoricalList[ 1 ] <- FALSE #  BMISC 
 categoricalList[ 2 ] <- FALSE #  AGEC 
@@ -169,7 +172,7 @@ The data supplied for this project from the AHS contained 12,153 instances of 14
 
 The data firstly needed to be cleaned as there were large amounts of missingness. Our response variables of interest are DIABBC (presence of type 2 diabetes) and CVDMEDST (dyslipidemia). For variables that were identified as potential response variables, the missingness actually varied significantly:
 
-```{r}
+```{r, echo=FALSE, fig=TRUE}
 diabbc_miss = 100*mean(is.na(nutm$DIABBC))
 dyslip_miss = 100*mean(is.na(nutm$CVDMEDST))
 
@@ -181,21 +184,79 @@ kable_styling(kabtab)
 
 ```
 
-We have complete responses for diabetes, however only about a third of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad:
-
-```{r}
-# compare complete cases before and after
-
-```
+We have complete responses for diabetes, however only about a quarter of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad.
 
 ## Dietary Sugars and Fats
+We now examine the variables we are most interested in as predictors. Specifically, we plot the data grouped by the presence or absence of the particular disease in question.
+
+```{r, include=FALSE, echo=FALSE}
+#DYSLIP
+dyslipidemia_response = c("CVDMEDST")
+dyslipidemia_variables = c("BMISC", "AGEC", "EXLWTBC", 
+                       # "SF2SA1QN", "INCDEC",
+                       # "HSUGBC", 
+                       #"FATT1", 
+                       "SUGART1", 
+                       "FATPER1", "LAPER1", "ALAPER1", 
+                       "CHOPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       "ADTOTSE",
+                       # "SEX"
+                       # "SMKSTAT", 
+                       "SYSTOL", 
+                       "B3T1",
+                       # "FASTSTAD", 
+                       #"HDLCHREB", 
+                       # "LDLNTR", 
+                       #"LDLRESB",
+                      "CHOWSAT1", 
+                      "STARCHT1", 
+                      # "FIBRET1", 
+                      "FIBRPER1", 
+                      #"ALCT1", 
+                      "ALCPER1", 
+                      #"CHOPER1", 
+                      "PEFRESD1", "PEADDSD1"
+                       )
+dyslipidemia = nutm[c(dyslipidemia_response, dyslipidemia_variables)]
+head(dyslipidemia)
+dyslipidemia <- mutate(dyslipidemia, CVDMEDST = ifelse(CVDMEDST == 4, "0", "1"))
+dyslipidemia$CVDMEDST <- as.factor(dyslipidemia$CVDMEDST)
+# dyslipidemia$HDLCHREB <- as.numeric(dyslipidemia$HDLCHREB)
+# dyslipidemia$LDLNTR <- as.numeric(dyslipidemia$LDLNTR)
+# dyslipidemia$LDLRESB <- as.numeric(dyslipidemia$LDLRESB)
+
+dyslipidemia_no_na <- dyslipidemia[complete.cases(dyslipidemia), ]
+dim(dyslipidemia_no_na)
+head(dyslipidemia_no_na)
+```
+
+```{r, echo=FALSE, fig=TRUE, message=FALSE}
+dyslipfats1 = dyslipidemia_no_na[,c("CVDMEDST","LAPER1","SATPER1","MONOPER1","POLYPER1")]
+dyslipfats2 = dyslipidemia_no_na[,c("CVDMEDST","ALAPER1", "TRANPER1")]
+
+dyslipsugars1 = dyslipidemia_no_na[, c("CVDMEDST","PEFRESD1", "PEADDSD1")]
+
+melted_dyslip_fats1 = melt(dyslipfats1)
+colnames(melted_dyslip_fats1) = c("Has Dyslipidemia", "Variable", "Value")
+fat1 = ggplot(melted_dyslip_fats1, aes(x = Variable, y = Value, fill = `Has Dyslipidemia`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Fats") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
+
+melted_dyslip_fats2 = melt(dyslipfats2)
+colnames(melted_dyslip_fats2) = c("Has Dyslipidemia", "Variable", "Value")
+fat2 = ggplot(melted_dyslip_fats2, aes(x = Variable, y = Value, fill = `Has Dyslipidemia`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Fats") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
+
+melted_dyslip_sugars1 = melt(dyslipsugars1)
+colnames(melted_dyslip_sugars1) = c("Has Dyslipidemia", "Variable", "Value")
+sugar1 = ggplot(melted_dyslip_sugars1, aes(x = Variable, y = Value, fill = `Has Dyslipidemia`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Sugars") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
+
+grid.arrange(fat1, fat2, sugar1, nrow=2)
+```
+There are a few things to note here. Firstly, the data is skewed with a large number of outliers. With more time we would have liked to spend more time examining outliers to determine which are valid for the analysis, however we did not. Secondly, we note there does not appear to be significant difference between these predictors, which suggests predicting dyslipidemia will be difficult. 
 
 (boxplots of fats with and without diabetes, dyslipidemia)
 (boxplots of sugars with and without diabetes, dyslipidemia)
 
 (correlations among all factors)
-
-(tables of numbers of responses to be analysed ie. 4000 pos, 1500 neg etc.)
 
 
 # Models
