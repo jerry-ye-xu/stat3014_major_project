@@ -1,5 +1,5 @@
 ---
-title: "Effectiveness of using Dietary Composition to predict Type II Diabetes and Dyslipidemia for ages 18+"
+title: "Predicting Type II Diabetes and Dyslipidemia in Adults using the Composition of Dietary Fat and Carbohydrates"
 author: "Ian Astalosh (450376261), Cassie Brooks, Catherine Chen, Jerry Xu, Leon Yao"
 output: pdf_document
 ---
@@ -191,7 +191,7 @@ kable_styling(kabtab)
 
 ```
 
-We have complete responses for diabetes, however only about a quarter of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad.
+We have complete responses for diabetes, however only about a quarter of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad, and our sample sizes become 7567 and 2909 respectively for diabetes and dyslipidemia (from an original 9435).
 
 ## Examining our Target Variables
 We now perform exploratory data analysis on our variables of interest: type II diabetes and dyslipidemia.
