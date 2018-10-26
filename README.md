@@ -48,3 +48,6 @@ __GitHub:__
 
 <br>[GitHub Repo](https://github.com/jerry-ye-xu/stat3014_nutm3004_major_project) </br>
 
+__Final Words:__
+
+Although the data was insufficient in producing revolutionary results, it was a great interdisciplinary project where as a statistics student I was able to learn more about another discipline and apply my knowledge critically to a project. 
