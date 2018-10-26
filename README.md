@@ -46,7 +46,7 @@ All functions for use are stored as \<function_name\>.R
 
 __GitHub:__
 
-<br>[GitHub Repo](https://github.com/jerry-ye-xu/stat3014_nutm3004_major_project) </br>
+[GitHub Repo](https://github.com/jerry-ye-xu/stat3014_nutm3004_major_project)
 
 __Final Words:__
 
