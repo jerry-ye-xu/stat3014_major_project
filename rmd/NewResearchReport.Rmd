@@ -1,6 +1,6 @@
 ---
-title: "Effectiveness of using Dietary Composition to predict Type II Diabetes and Dyslipidemia for ages 18+"
-author: "Ian Astalosh, Cassie Brooks, Catherine Chen, Jerry Xu, Leon Yao"
+title: "Predicting Type II Diabetes and Dyslipidemia in Adults using the Composition of Dietary Fat and Carbohydrates"
+author: "Ian Astalosh (450376261), Cassie Brooks (440151111), Catherine Chen (430257760), Jerry Xu (311304397), Leon Yao (460364601)"
 output: pdf_document
 ---
 
@@ -16,9 +16,8 @@ output: pdf_document
 
 ```
 
-
 # Executive Summary
-This collaborative effort between nutrition and statistics departments aims to assess the impact of dietary fats on non-communicable diseases (NCD's). The data was taken from the Australian Health Survey 2011-2012 (AHS), at the time the largest health survey ever conducted in Australia. Focussing on adults (ages 18 and over), the main research questions we sought to answer were:
+Cardiovascular diseases are the leading cause of death in Australia, where ischaemic heart diseases is the most common form of cardiovascular-related deaths. An emerging risk factor for cardiovascular disease include obesity, and is considered an uprising epidemic globally. Contributors towards obesity include existing health problems such as type 2 diabetes and dyslipidemia, both of which can often be predicted or controlled through diet. This paper investigates individual dietary intake patterns of Australian adults aged 18-75 years, specifically the composition of dietary fat and carbohydrates, and analysing its effect and relationship with comorbidities of obesity. Data from the Australian Health Survey and National Health Survey 2011-2012 and National Nutrition and Physical Activity Survey 2011-2012 was collaborated and reviewed. Our main research questions were:
 
 \begin{enumerate}
 \item What factors influence the chances of a person having an NCD such as type II diabetes or dyslipidemia?
@@ -27,9 +26,27 @@ This collaborative effort between nutrition and statistics departments aims to a
 \item Is it possible to predict prevalence of these diseases from only basic physical details and these dietary breakdowns?
 \end{enumerate}
 
-We found \textbf{results}
+A positive correlation was noted between intake of carbohydrates with dyslipidemia, and trans fats be the highest indidactor compared to polyunsaturated fats, monounsaturated fats, and saturated fats. Carbohydrates and trans fats were similarly positively correlated to diabetes, while other fats did not have as significant of a link. 
+
+## Shortcomings
+\begin{itemize}
+\item There was significant imbalance in the data. Most people reported not having diabetes for example, and this class imbalance caused our classifiers to struggle. 
+\item There were large amounts of missingness in the data. With greater sample size we may have seen more pronounced effects, however even despite the wealth of data here it may not have been enough
+\item In doing prediction, there is the implicit assumption that a person is living their life as if they did not know their diagnosis. It is reasonable to assume that someone upon learning they are diabetic is likely to change their eating habits, thus meaning their consumption data is not representative of the habits that led to them becoming diabetic in the first place. 
+
+\end{itemize}
 
 # Context
+
+Non-communicable diseases (NCDs) are responsible for 41 million deaths globally each year, with cardiovascular disease accounting for 17.9 million and diabetes 1.6 million. The interplay of genetic, physiological, environmental, and behavioural factors influence and contribute to metabolic risk factors that increase the risk of NCDs.  Obesity is the excess of normal adiposity and is a highly influential risk factor in the pathophysiology of many diseases including diabetes mellitus and dyslipidemia. Obesity plays a pivotal role in the dysregulation of cellular metabolism giving rise to local insulin resistance within adipose tissue, which can have further downstream consequences. Affected adipose tissue can result in uncontrolled release of fatty acids, elevated secretion of inflammatory cytokines and adipokines that influence lipoprotein metabolism and further impact insulin sensitivity.
+
+Diet has been shown to influence our blood lipid profile, with diets high in saturated fat, trans fats contributing to abnormally high levels of cholesterol. Furthermore, carbohydrate rich diets have been shown to contribute to type 2 diabetes mellitus, where glycemic index, an in vivo indicator of carbohydrate quality based on absorption rate, and glycemic load, a measure of effect of carbohydrates in the diet, were used as a measure to link type 2 diabetes with carbohydrates. 
+ 
+Plasma lipoprotein particles are responsible for the transport of fat within the bloodstream, and are classified according to density, High Density Lipoprotein (HDL), Low Density Lipoprotein (LDL), Intermediate Density Lipoprotein (ILD) and Very Low Density Lipoprotein (VLDL).
+
+This paper investigates individual dietary intake patterns of Australian adults aged 18-75 years, specifically the composition of dietary fat and carbohydrates, analysing its effect and relationship with comorbidities of obesity, namely dyslipidemia and T2D. We explore the specific effects of individual types dietary fats and carbohydrates on the characteristics of dyslipidemia and T2D. 
+
+
 
 ```{r, echo=FALSE, include=FALSE}
 
@@ -60,6 +77,7 @@ We found \textbf{results}
 # install.packages("kableExtra")
 # install.packages("kable")
 # install.packages("reshape2")
+# install.packages("corrplot")
 
 suppressMessages(library(tidyverse))
 library(tidyr)
@@ -89,6 +107,7 @@ library(randomForestSRC) # basic RF package
 library(ranger)
 library(kableExtra)
 library(reshape2)
+library(corrplot)
 
 source("./functions/cv_knn.R")
 source("./functions/cv_da.R")
@@ -110,8 +129,6 @@ nutm_orig = read.csv("../output/nutmstat_factors_and_NAs.csv")
 nutm = nutm_orig[all_variables]
 
 ```
-
-We'll need to reprocess some of the variables as factors. 
 
 ```{r, include=FALSE}
 
@@ -190,10 +207,88 @@ kable_styling(kabtab)
 
 ```
 
-We have complete responses for diabetes, however only about a quarter of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad.
+We have complete responses for diabetes, however only about a quarter of respondents for dyslipidemia. We deal with missing data by only keeping the complete cases. We considered using multiple imputation methods, however the data loss is not too bad, and our sample sizes become 7567 and 2909 respectively for diabetes and dyslipidemia (from an original 9435).
 
-## Dietary Sugars and Fats
-We now examine the variables we are most interested in as predictors. Specifically, we plot the data grouped by the presence or absence of the particular disease in question.
+## Examining our Target Variables
+We now perform exploratory data analysis on our variables of interest: type II diabetes and dyslipidemia.
+
+### Diabetes
+We firstly would like to see the proportion of people in our data with our particular diseases. We collapse the DIABBC into a simple "does not have diabetes" (0) and "has diabetes" (1):
+
+```{r, include=FALSE, echo=FALSE}
+diabetes_response = c("DIABBC")
+diabetes_variables = c("BMISC", "AGEC", "EXLWTBC", 
+                       # "SF2SA1QN", "INCDEC",
+                       # "HSUGBC", 
+                       #"FATT1", 
+                       "SUGART1", 
+                       "FATPER1", "LAPER1", "ALAPER1", 
+                       "CHOPER1", 
+                       "SATPER1", "TRANPER1", "MONOPER1", "POLYPER1", 
+                       "ADTOTSE",
+                       # "SEX"
+                       # "SMKSTAT", 
+                       "SYSTOL", 
+                       "B3T1",
+                       # "FASTSTAD", 
+                       #"HDLCHREB", 
+                       # "LDLNTR", 
+                       #"LDLRESB",
+                      "CHOWSAT1", 
+                      "STARCHT1", 
+                      # "FIBRET1", 
+                      "FIBRPER1", 
+                      #"ALCT1", 
+                      "ALCPER1", 
+                      #"CHOPER1", 
+                      "PEFRESD1", "PEADDSD1"
+                       )
+diabetes = nutm[c(diabetes_response, diabetes_variables)]
+diabetes = diabetes[diabetes$DIABBC != 3, ]
+table(diabetes$DIABBC)
+diabetes <- mutate(diabetes, DIABBC = ifelse(DIABBC == 5, "0", "1"))
+diabetes$DIABBC <- as.factor(diabetes$DIABBC)
+head(diabetes)
+
+sum(is.na(nutm[diabetes_response]))
+diabetes_no_na <- diabetes[complete.cases(diabetes), ]
+dim(diabetes_no_na)
+class_count <- table(diabetes_no_na$DIABBC)
+count_mat = matrix(class_count, nrow=1)
+colnames(count_mat) = c("Does not have diabetes", "Has diabetes"); rownames(count_mat) = "Number of instances"
+```
+
+```{r, echo=FALSE}
+count_diab = kable(count_mat)
+kable_styling(count_diab)
+```
+There is a significant imbalance in the number of adults surveyed with and without diabetes. This will be an issue when performing classification later on.
+
+We then aim to see if there are any differences in the consumption of the micronutrients and sugars of interest:
+```{r, echo=FALSE, fig=TRUE, message=FALSE}
+diabfats1 = diabetes_no_na[,c("DIABBC","LAPER1","SATPER1","MONOPER1","POLYPER1")]
+diabfats2 = diabetes_no_na[,c("DIABBC","ALAPER1", "TRANPER1")]
+
+diabsugars1 = diabetes_no_na[, c("DIABBC","PEFRESD1", "PEADDSD1")]
+
+melted_diab_fats1 = melt(diabfats1)
+colnames(melted_diab_fats1) = c("Has Diabetes", "Variable", "Value")
+fat1 = ggplot(melted_diab_fats1, aes(x = Variable, y = Value, fill = `Has Diabetes`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Fats") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
+
+melted_diab_fats2 = melt(diabfats2)
+colnames(melted_diab_fats2) = c("Has Diabetes", "Variable", "Value")
+fat2 = ggplot(melted_diab_fats2, aes(x = Variable, y = Value, fill = `Has Diabetes`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Fats") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
+
+melted_diab_sugars1 = melt(diabsugars1)
+colnames(melted_diab_sugars1) = c("Has Diabetes", "Variable", "Value")
+sugar1 = ggplot(melted_diab_sugars1, aes(x = Variable, y = Value, fill = `Has Diabetes`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Sugars") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
+
+grid.arrange(fat1, fat2, sugar1, nrow=2)
+```
+There are a few things to note here. Firstly, the data is skewed with a large number of outliers. With more time we would have liked to spend more time examining outliers to determine which are valid for the analysis, however we did not. Secondly, there appears to be a difference in the amount of sugar consumed by those with and without diabetes. However in terms of the dietary fats, it is difficult to spot a difference.
+
+### Dyslipidemia
+Again, we examine the counts of cases:
 
 ```{r, include=FALSE, echo=FALSE}
 #DYSLIP
@@ -218,7 +313,7 @@ dim(dyslipidemia_no_na)
 head(dyslipidemia_no_na)
 table(dyslipidemia_no_na$CVDMEDST)
 
-
+#DIABBC 
 diabetes_response = c("DIABBC")
 diabetes_variables = c("BMISC", "AGEC", "EXLWTBC", 
                        "SUGART1", "CHOPER1", 
@@ -244,10 +339,24 @@ dim(diabetes_no_na)
 head(dyslipidemia_no_na)
 table(diabetes_no_na$DIABBC)
 
+class_count <- table(dyslipidemia$CVDMEDST)
+count_mat_dys = matrix(class_count, nrow=1)
+colnames(count_mat_dys) = c("Does not have dyslipidemia", "Has dyslipidemia"); rownames(count_mat_dys) = "Number of instances"
+```
+
+```{r, echo=FALSE}
+
+count_dys = kable(count_mat_dys)
+kable_styling(count_dys)
 
 ```
 
+This data is slightly more balanced, however may still be problematic.
+
+Again now we examine the data for those with and without the disease:
+
 ```{r, echo=FALSE, fig=TRUE, message=FALSE}
+
 dyslipfats1 = dyslipidemia_no_na[,c("CVDMEDST","LAPER1","SATPER1","MONOPER1","POLYPER1")]
 dyslipfats2 = dyslipidemia_no_na[,c("CVDMEDST","ALAPER1", "TRANPER1")]
 
@@ -266,14 +375,24 @@ colnames(melted_dyslip_sugars1) = c("Has Dyslipidemia", "Variable", "Value")
 sugar1 = ggplot(melted_dyslip_sugars1, aes(x = Variable, y = Value, fill = `Has Dyslipidemia`)) + geom_boxplot() + ggtitle("Percentage of Energy Intake from Sugars") + theme(plot.title = element_text(hjust = 0.5, size=9), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8), axis.text.x = element_text(size=5), legend.title = element_text(size=8))
 
 grid.arrange(fat1, fat2, sugar1, nrow=2)
+
 ```
-There are a few things to note here. Firstly, the data is skewed with a large number of outliers. With more time we would have liked to spend more time examining outliers to determine which are valid for the analysis, however we did not. Secondly, we note there does not appear to be significant difference between these predictors, which suggests predicting dyslipidemia will be difficult. 
+There appears to be even less of a difference for dyslipidemia, suggesting this may be even harder to predict.
 
-(boxplots of fats with and without diabetes, dyslipidemia)
-(boxplots of sugars with and without diabetes, dyslipidemia)
+## Correlations among factors
+We now consider the relationships between our chosen factors. These factors were chosen based on expert knkowledge, but we plot a correlogram to look for multicollinearity which may cause problems in our models. Looking at the diabetes data (the larger of our two subsets as there is less missingness):
 
-(correlations among all factors)
+```{r, echo=FALSE, fig.align = "center"}
 
+forcor = diabetes_no_na[,-1]
+corplot1 = cor(forcor)
+corrplot(corplot1, method = "color", type = "upper", tl.col="black",  addCoef.col = "black", number.cex=0.4, tl.cex = 0.6,  insig = "blank")
+
+```
+
+There are again some interesting trends to be seen from this. Most variables are not corelated, except in certain sections. The fats generally have shigh corrleations, but this may be due to a 'doubling up'. For example, SATPER1 contains the percentage of energy intake from saturated fat and fatty acids, which is of course highly corrlated with TRANPER1, the percentage intake of trans-fatty acids. We also see CHOPER1, percentage of energy from carbohydrate, is highly correlated with energy sources such as sugars and starch, which makes sense. We also see the percentage energy from free sugars is highly correlated with that from added sugars.
+
+Outside of this, there appears to be no notable correlation trends that will affect our analysis.
 
 # Models
 
