@@ -14,7 +14,7 @@ Cardiovascular diseases are the leading cause of death in Australia, where ischa
 \item Is it possible to predict prevalence of these diseases from only basic physical details and these dietary breakdowns?
 \end{enumerate}
 
-A positive correlation was noted between intake of carbohydrates with dyslipidemia, and trans fats be the highest indidactor compared to polyunsaturated fats, monounsaturated fats, and saturated fats. Carbohydrates and trans fats were similarly positively correlated to diabetes, while other fats did not have as significant of a link. 
+A positive correlation was noted between intake of carbohydrates with dyslipidemia, and trans fats be the highest indicator compared to polyunsaturated fats, monounsaturated fats, and saturated fats. Carbohydrates and trans fats were similarly positively correlated to diabetes, while other fats did not have as significant of a link. 
 
 ## Shortcomings
 \begin{itemize}
