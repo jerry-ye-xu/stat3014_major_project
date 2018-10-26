@@ -4,17 +4,6 @@ author: "Ian Astalosh, Cassie Brooks, Catherine Chen, Jerry Xu, Leon Yao"
 output: pdf_document
 ---
 
-```{r, include=FALSE}
-#PACKAGES
-#install.packages(ggplot2)
-#install.packages()
-#install.packages()
-#library(ggplot2)
-#library()
-#library()
-```
-
-
 # Executive Summary
 Cardiovascular diseases are the leading cause of death in Australia, where ischaemic heart diseases is the most common form of cardiovascular-related deaths. An emerging risk factor for cardiovascular disease include obesity, and is considered an uprising epidemic globally. Contributors towards obesity include existing health problems such as type 2 diabetes and dyslipidemia, both of which can often be predicted or controlled through diet. This paper investigates individual dietary intake patterns of Australian adults aged 18-75 years, specifically the composition of dietary fat and carbohydrates, and analysing its effect and relationship with comorbidities of obesity. Data from the Australian Health Survey and National Health Survey 2011-2012 and National Nutrition and Physical Activity Survey 2011-2012 was collaborated and reviewed. Our main research questions were:
 
